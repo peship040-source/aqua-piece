@@ -7,12 +7,12 @@ import sun from '../assets/gems/gem-sun.webp'
 import emerald from '../assets/gems/gem-emerald.webp'
 
 export const gems = [
-  { name: 'Coral drop', asset: coral, light: 0xffb5ac },
-  { name: 'Ocean diamond', asset: ocean, light: 0xc0eaff },
-  { name: 'Amber orb', asset: amber, light: 0xffefae },
-  { name: 'Violet square', asset: violet, light: 0xead5ff },
-  { name: 'Sun hexagon', asset: sun, light: 0xffe795 },
-  { name: 'Emerald oval', asset: emerald, light: 0xe7ffc5 },
+  { name: 'Coral drop', label: 'コーラル', asset: coral, light: 0xffb5ac },
+  { name: 'Ocean diamond', label: 'オーシャン', asset: ocean, light: 0xc0eaff },
+  { name: 'Amber orb', label: 'アンバー', asset: amber, light: 0xffefae },
+  { name: 'Violet square', label: 'バイオレット', asset: violet, light: 0xead5ff },
+  { name: 'Sun hexagon', label: 'サン', asset: sun, light: 0xffe795 },
+  { name: 'Emerald oval', label: 'エメラルド', asset: emerald, light: 0xe7ffc5 },
 ]
 
 export const specials = {

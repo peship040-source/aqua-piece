@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  createBoard, findRuns, hasMove, play, playWithSteps, resolve, seededRng, stage, status,
+  createBoard, findRuns, hasMove, play, playWithSteps, resolve, seededRng, stage, stageFor, status,
   type Board, type Game, type Tile,
 } from './engine'
+import { earnedStars, STAGES, stageDef } from './stages'
 
 const tile = (color: number, special?: Tile['special']): Tile => ({ color, special })
 const pattern = (): Board => Array.from({ length: 64 }, (_, i) => tile((Math.floor(i / 8) + i % 8) % 6))
-const gameWith = (board: Board): Game => ({ board, moves: 30, score: 0, goal: 1000 })
+const gameWith = (board: Board): Game => ({
+  board, moves: 30, score: 0, goal: 1000, stageId: 1, collected: [0, 0, 0, 0, 0, 0],
+})
 const refill = (...colors: number[]) => () => {
   const color = colors.shift()
   if (color === undefined) throw new Error('Unexpected refill')
@@ -194,5 +197,47 @@ describe('Stage 1', () => {
     expect(status({ ...game, score: 1000, moves: 0 })).toBe('won')
     expect(status({ ...game, score: 999, moves: 0 })).toBe('lost')
     expect(play({ ...game, moves: 0 }, 0, 1, seededRng(1)).game.moves).toBe(0)
+  })
+})
+
+describe('stage goals and rewards', () => {
+  it.each(STAGES)('initializes stage $id from its definition', def => {
+    expect(stageDef(def.id)).toBe(def)
+    expect(stageFor(def, seededRng(1))).toMatchObject({
+      stageId: def.id, moves: def.moves, goal: def.target, score: 0, collected: [0, 0, 0, 0, 0, 0],
+    })
+  })
+
+  it('wins a collect goal on the last move using cumulative clears across cascades', () => {
+    const board = pattern()
+    for (const i of [56, 57, 59]) board[i] = tile(0)
+    const game = { ...gameWith(board), goal: 18, stageId: 2, moves: 1, score: 2500,
+      collected: [15, 1, 0, 0, 0, 0] }
+    expect(status(game)).toBe('playing')
+    expect(status({ ...game, moves: 0 })).toBe('lost')
+    const result = play(game, 58, 59, refill(5, 5, 5, 0, 1, 2))
+    expect(result.game.collected).toEqual([18, 1, 0, 0, 0, 3])
+    expect(game.collected).toEqual([15, 1, 0, 0, 0, 0])
+    expect(result.game.moves).toBe(0)
+    expect(status(result.game)).toBe('won')
+  })
+
+  it('counts unique clears from a special and excludes the surviving replacement', () => {
+    const board = pattern()
+    for (const i of [0, 1, 3]) board[i] = tile(0)
+    board[2] = tile(0, 'line-row')
+    const result = resolve(board, refill(1, 2, 3, 4, 5, 0, 1), [2, 10])
+    expect(result.clearedByColor).toEqual([4, 1, 0, 0, 1, 1])
+  })
+
+  it('uses an explicit definition and awards bonus stars at inclusive score thresholds', () => {
+    const def = STAGES[3]
+    const game = { ...gameWith(pattern()), collected: [30, 24, 0, 0, 0, 0], score: 3000 }
+    expect(status(game, def)).toBe('playing')
+    expect(earnedStars(def, game)).toBe(0)
+    const won = { ...game, collected: [30, 25, 0, 0, 0, 0] }
+    expect(earnedStars(def, { ...won, score: 1799 })).toBe(1)
+    expect(earnedStars(def, { ...won, score: 1800 })).toBe(2)
+    expect(earnedStars(def, { ...won, score: 2400 })).toBe(3)
   })
 })

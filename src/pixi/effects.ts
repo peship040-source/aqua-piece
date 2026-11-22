@@ -45,8 +45,8 @@ const RIPPLE_DURATION = 300
 export function createEffects(layer: Container) {
   const ripples = Array.from({ length: 6 }, () => {
     const ring = layer.addChild(new Graphics()
-      .circle(0, 0, 24).stroke({ color: 0xb8fff5, width: 5, alpha: 0.22 })
-      .circle(0, 0, 24).stroke({ color: 0xffffff, width: 1.5, alpha: 0.85 }))
+      .circle(0, 0, 24).stroke({ color: 0x6cf3dc, width: 5, alpha: 0.28 })
+      .circle(0, 0, 24).stroke({ color: 0xd6fff1, width: 1.5, alpha: 0.88 }))
     ring.visible = false
     return { ring, elapsed: 0 }
   })

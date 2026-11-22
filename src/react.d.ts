@@ -43,7 +43,8 @@ declare module 'react/jsx-runtime' {
       small: Attributes
       i: Attributes
       section: Attributes
-      dialog: Attributes & { ref: { current: HTMLDialogElement | null } }
+    dialog: Attributes & { ref: { current: HTMLDialogElement | null }; onCancel?: (event: Event) => void }
+    img: Attributes & { src: string; alt: string }
       footer: Attributes
       button: Attributes & {
         type: 'button'

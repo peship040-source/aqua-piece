@@ -18,8 +18,9 @@ function createShadowTexture() {
   const context = canvas.getContext('2d')!
   const center = CELL / 2
   const gradient = context.createRadialGradient(center, center, 0, center, center, center)
-  gradient.addColorStop(0, 'rgba(0, 5, 16, 0.8)')
-  gradient.addColorStop(0.48, 'rgba(0, 5, 16, 0.55)')
+  gradient.addColorStop(0, 'rgba(0, 6, 19, 0.96)')
+  gradient.addColorStop(0.5, 'rgba(0, 6, 19, 0.76)')
+  gradient.addColorStop(0.78, 'rgba(0, 6, 19, 0.33)')
   gradient.addColorStop(1, 'rgba(0, 5, 16, 0)')
   context.fillStyle = gradient
   context.fillRect(0, 0, CELL, CELL)
@@ -35,9 +36,9 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
   const content = node.addChild(new Container())
   const shadow = content.addChild(new Sprite(shadowTexture))
   shadow.anchor.set(0.5)
-  shadow.width = CELL * 0.9
-  shadow.height = CELL * 0.45
-  shadow.y = CELL * 0.27
+  shadow.width = CELL * 0.98
+  shadow.height = CELL * 0.53
+  shadow.y = CELL * 0.31
 
   const halo = content.addChild(new Graphics()
     .circle(0, 0, 26).stroke({ color: 0xffffff, width: 10, alpha: 0.12 })
@@ -45,12 +46,16 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     .circle(0, 0, 26).stroke({ color: 0xffffff, width: 2, alpha: 0.52 }))
 
   const glow = content.addChild(new Graphics()
-    .roundRect(-28, -29, 56, 56, 16).stroke({ color: 0x91fff3, width: 7, alpha: 0.25 })
-    .roundRect(-28, -29, 56, 56, 16).stroke({ color: 0xffffff, width: 2, alpha: 0.98 }))
+    .roundRect(-28, -29, 56, 56, 16).stroke({ color: 0x6cf3dc, width: 7, alpha: 0.32 })
+    .roundRect(-28, -29, 56, 56, 16).stroke({ color: 0xd6fff1, width: 2, alpha: 0.98 }))
   glow.visible = false
 
   const face = content.addChild(new Sprite())
   face.anchor.set(0.5)
+  // An additive pass lifts the existing highlights within each gem's silhouette.
+  const sheen = content.addChild(new Sprite())
+  sheen.anchor.set(0.5)
+  sheen.blendMode = 'add'
 
   const badge = content.addChild(new Container())
   badge.position.set(17, 16)
@@ -77,8 +82,10 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     if (tile !== next.tile) {
       tile = next.tile
       const texture = textures[tile.color]
-      face.texture = texture
-      face.scale.set((CELL - 8) / Math.max(texture.width, texture.height))
+      face.texture = sheen.texture = texture
+      const scale = (CELL - 8) / Math.max(texture.width, texture.height)
+      face.scale.set(scale)
+      sheen.scale.set(scale)
       halo.visible = badge.visible = !!tile.special
       mark.text = tile.special ? specials[tile.special].glyph : ''
     }
@@ -102,6 +109,7 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     content.scale.set(1 + (selected && !reduced ? 0.03 + bounce * 0.018 : 0) + (reduced ? 0 : 0.26 * clearProgress))
     content.alpha = 1 - clearProgress
     glow.visible = selected
+    sheen.alpha = selected ? 0.23 : 0.12
   }
 
   return { node, place, update, decorate, get at() { return at } }

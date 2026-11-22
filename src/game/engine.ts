@@ -1,14 +1,23 @@
+import { goalReached, STAGES, stageDef, type StageDef } from './stages'
+
 export const SIZE = 8
 export const COLORS = 6
-export const MOVES = 30
-export const GOAL = 1000
+export const MOVES = STAGES[0].moves
+export const GOAL = STAGES[0].target
 
 type Axis = 'row' | 'column'
 type Special = 'line-row' | 'line-column' | 'burst' | 'color'
 export type Tile = { color: number; special?: Special }
 export type Board = Tile[]
 export type Rng = () => number
-export type Game = { board: Board; moves: number; score: number; goal: number }
+export type Game = {
+  board: Board
+  moves: number
+  score: number
+  goal: number
+  collected: number[]
+  stageId: number
+}
 type Run = { axis: Axis; cells: number[] }
 type ClearStep = {
   kind: 'clear'
@@ -176,6 +185,7 @@ function resolveBoard(initial: Board, random: Rng, swapped?: [number, number], r
   let board = initial
   let score = 0
   let chain = 0
+  const clearedByColor = Array<number>(COLORS).fill(0)
   const swapTargets = new Map<number, number>()
   if (swapped) {
     const [from, to] = swapped
@@ -212,6 +222,7 @@ function resolveBoard(initial: Board, random: Rng, swapped?: [number, number], r
     swapTargets.clear()
     swapped = undefined
     replacements.forEach((_, at) => clear.delete(at))
+    for (const at of clear) clearedByColor[board[at].color]++
     chain++
     const points = clear.size * 10 * chain
     score += points
@@ -221,15 +232,22 @@ function resolveBoard(initial: Board, random: Rng, swapped?: [number, number], r
     board = drop(board, clear, replacements, random)
     record?.({ kind: 'drop', board })
   }
-  return { board, score, chain }
+  return { board, score, chain, clearedByColor }
+}
+
+export function stageFor(def: StageDef, random: Rng): Game {
+  return {
+    board: createBoard(random), moves: def.moves, score: 0, goal: def.target,
+    stageId: def.id, collected: Array<number>(COLORS).fill(0),
+  }
 }
 
 export function stage(random: Rng): Game {
-  return { board: createBoard(random), moves: MOVES, score: 0, goal: GOAL }
+  return stageFor(STAGES[0], random)
 }
 
-export function status(game: Game): 'playing' | 'won' | 'lost' {
-  if (game.score >= game.goal) return 'won'
+export function status(game: Game, def = stageDef(game.stageId)): 'playing' | 'won' | 'lost' {
+  if (def ? goalReached(def, game) : game.score >= game.goal) return 'won'
   return game.moves === 0 ? 'lost' : 'playing'
 }
 
@@ -255,7 +273,10 @@ function playTurn(game: Game, from: number, to: number, random: Rng, record?: Re
   }
 
   const result = resolveBoard(board, random, [from, to], record)
-  const next = { ...game, board: result.board, moves: game.moves - 1, score: game.score + result.score }
+  const next = {
+    ...game, board: result.board, moves: game.moves - 1, score: game.score + result.score,
+    collected: game.collected.map((count, color) => count + result.clearedByColor[color]),
+  }
   const reshuffled = status(next) === 'playing' && !hasMove(next.board)
   if (reshuffled) {
     next.board = reshuffle(next.board, random)

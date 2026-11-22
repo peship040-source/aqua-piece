@@ -1,0 +1,20 @@
+AQUA PIECE Phase 5b (UI + design): stage select screen, per-goal HUD, result modal with stars, and design polish. Phase 5a is already done: src/game/stages.ts (STAGES, stageDef, earnedStars), engine Game has collected/stageId and stageFor/status support, src/save.ts is v2 (progress {unlocked, stars, best}, current snapshot, recordClear, v1 migration). Work in ~/workspace/aqua-piece. Read DESIGN-PHASE5.md, src/main.tsx, src/styles.css, src/game/stages.ts, src/save.ts, and the Pixi board files (src/pixi/) first. All 41 existing tests must still pass; no sound; do not change assets or the gem color mapping (0=coral,1=ocean,2=amber,3=violet,4=sun,5=emerald).
+
+1) Screen flow in the React app:
+- Screen state 'select' | 'play'. On load: show select screen; if save.current exists, show a Continue button （つづきから) on it with the stage number.
+- Stage select: one card per stage (1-5): stage number, goal summary (score: 「スコア 1,000」; collect: gem name + 「18個あつめよう」 — gem names: 0 コーラル, 1 オーシャン, 2 アンバー, 3 バイオレット, 4 サン, 5 エメラルド), earned stars (★ gold / ☆ dim), best score if any. Locked stages (id > progress.unlocked) are dimmed with a lock mark and not tappable. Tapping an unlocked card starts that stage fresh (stageFor + save as current).
+- In play: header shows 「ステージ N」 and a 「もどる」 button back to select (the in-progress game stays saved as current; no confirm dialog).
+- Restart button restarts the current stage from scratch.
+
+2) HUD by goal type:
+- Score stages: big Score number, target, glossy gradient progress bar (score/target), moves left.
+- Collect stages: target gem mini-icon (reuse the gem webp asset) + collected/target as the main progress with bar, current score shown smaller as secondary, moves left.
+- On game end (status won/lost for the current stage's def): call recordClear on win and persist progress; clear current on finish (per save v2 semantics already in save.ts — wire it if not yet wired in main.tsx).
+
+3) Result modal:
+- Win: stars earned light up one by one (CSS animation with delays), final score, and for collect stages also the collected count. Buttons: 「つぎのステージ」 (only if a next stage exists and is now unlocked), 「もういちど」, 「ステージをえらぶ」.
+- Lose: quiet tone, score and goal progress shown, buttons 「もういちど」 and 「ステージをえらぶ」.
+
+4) Design polish — implement all five sections of DESIGN-PHASE5.md: glassy translucent panels (backdrop blur + soft shadows, unified corner radius), larger bolder HUD numerals with tabular figures, gradient glossy progress bar, stage cards with visually distinct cleared/unlocked/locked states that match the sea background art, star-lighting animation, and stronger gem highlight/drop-shadow in the Pixi board rendering (src/pixi/textures.ts or board renderer) without changing the asset files or color mapping.
+
+Constraints: keep the single-file widget build (vite.widget.config.ts) working. Run npm test, npm run build, and the widget build (npm run build -- --config vite.widget.config.ts if that is how it was done before — check package.json scripts) at the end. Report: results of each command, changed files, and any decisions you made. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

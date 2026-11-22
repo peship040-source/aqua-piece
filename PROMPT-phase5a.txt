@@ -1,0 +1,25 @@
+AQUA PIECE Phase 5a (logic only — no UI work): stage definitions, engine collect-goal support, and save v2 with migration. Work in ~/workspace/aqua-piece. Read src/game/engine.ts, src/save.ts, src/game/engine.test.ts, src/game/save.test.ts first. All 27 existing tests must still pass (update only where the Game shape forces it); add tests for new logic. No sound, no asset changes, no UI/CSS changes in this phase.
+
+1) New src/game/stages.ts:
+export type StageDef = { id: number; goalType: 'score' | 'collect'; targetColor?: number; target: number; moves: number; star2: number; star3: number }
+STAGES (star2/star3 are score thresholds for bonus stars):
+1: score, target 1000, moves 30, star2 1400, star3 1800
+2: collect color 0, target 18, moves 30, star2 1500, star3 2000
+3: score, target 1800, moves 30, star2 2300, star3 2800
+4: collect color 1, target 25, moves 30, star2 1800, star3 2400
+5: score, target 2200, moves 30, star2 2700, star3 3200
+Export STAGES and stageDef(id). Also export earnedStars(def, game): 0 if not won, else 1 + (score>=star2) + (score>=star3).
+
+2) Engine (src/game/engine.ts):
+- Game gains collected: number[] (length 6, per-color cleared counts, starts 0) and stageId: number.
+- stageFor(def, random): Game from a StageDef (moves=def.moves; keep game.goal = def.target for score stages; for collect stages goal may stay def.target too, but win judgment must use def). Keep stage(random) = stageFor(STAGES[0], random).
+- Count every cleared tile's color during resolve (normal clears, special-activated clears, chain clears) into a per-turn clearedByColor, thread it through resolve/resolveBoard returns, and accumulate into game.collected in playTurn.
+- status(game, def?): win when score-type score>=target, or collect-type collected[targetColor]>=target; lost when moves==0 and not won; else playing. Without def, resolve it from game.stageId so existing call sites keep working.
+
+3) Save (src/save.ts, keep localStorage key aqua-piece-v1):
+- New shape: { version: 2, progress: { unlocked: number, stars: Record<number, number>, best: Record<number, number> }, current: <in-progress game snapshot or null> }.
+- Load: if stored JSON matches v2, use it. If it matches the old v1 shape, migrate: preserve the in-progress game as current and any best score as best[1]; unlocked starts 1. If unparseable, fresh state (unlocked 1, empty stars/best, current null).
+- recordClear(progress, def, game): returns new progress with stars[def.id]=max(old, earnedStars), best[def.id]=max(old, score), unlocked=max(unlocked, min(5, def.id+1)).
+- Keep the existing exported load/save functions working for the current game snapshot (adapt them to the v2 shape); keep the widget in-memory storage shim compatibility.
+
+Run npm test at the end and report: test results, changed/added files, and any decisions you made. Do NOT run npm run build (not needed for this phase). If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.
