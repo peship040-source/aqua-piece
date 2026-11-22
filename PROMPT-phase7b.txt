@@ -1,0 +1,12 @@
+AQUA PIECE Phase 7b (design only): turn the stage select screen into a "sea map" dive path. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, src/game/stages.ts, src/game/items.ts, src/components/ItemIcon.tsx, src/save.ts (read briefly). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data/unlock-logic changes — presentation of the stage select screen only. Keep the Phase 7a title logo and the 図鑑 (collection) button working.
+
+Replace the stage card list with a vertical dive path:
+- Stages 1-10 arranged top (shallow) to bottom (deep) along a winding path: nodes alternate horizontal offsets (left/center/right pattern) connected by a visible path (an SVG curve behind the nodes, or a styled connector — your choice, CSS/SVG only).
+- The map area's background gradient deepens from light aqua at the top to deep teal at the bottom, suggesting depth. Small depth labels (e.g. -0m, -10m ... or 浅瀬→深海） are a nice touch if simple.
+- Each node: a circular badge with the stage number; stars earned shown under/over it; cleared nodes in full color; locked nodes dimmed with a lock indicator and not tappable; the next playable (first uncleared unlocked) node highlighted with a gentle pulse (off under prefers-reduced-motion).
+- Beside each node, a small label: stage goal summary (e.g. スコア1000 / コーラル×18) and best score if any.
+- Reward marker: if the stage's collection item is owned, show its small ItemIcon next to the node; if not yet owned but the stage is unlocked/cleared-able, a subtle hint is optional — keep it simple.
+- Tapping an unlocked node starts that stage, exactly as the cards did.
+- The map scrolls vertically within the screen; the header (logo + 図鑑 button) stays at the top.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

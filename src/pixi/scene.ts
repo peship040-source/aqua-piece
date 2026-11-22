@@ -75,10 +75,12 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
   let startX = targetX
   let startY = targetY
   let duration = 0
+  let settling = false
   node.position.set(targetX, targetY)
   node.on('pointertap', () => tap(at))
 
-  function place(next: PlacedTile) {
+  function place(next: PlacedTile, dropping: boolean) {
+    const isNew = tile === undefined
     if (tile !== next.tile) {
       tile = next.tile
       const texture = textures[tile.color]
@@ -95,6 +97,7 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     targetX = xOf(at)
     targetY = (next.row + 0.5) * CELL
     duration = next.duration ?? 0
+    settling = dropping && (isNew || startY !== targetY)
   }
 
   function update(elapsed: number, motion: Frame['motion'], reduced: boolean) {
@@ -103,13 +106,16 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     node.position.set(interpolate(startX, targetX, eased), interpolate(startY, targetY, eased))
   }
 
-  function decorate(selected: boolean, time: number, clearProgress: number, reduced: boolean) {
+  function decorate(selected: boolean, time: number, clearProgress: number, reduced: boolean, elapsed: number) {
     const bounce = selected && !reduced ? Math.sin(time / 240) : 0
     content.y = selected && !reduced ? -2 + bounce : 0
     content.scale.set(1 + (selected && !reduced ? 0.03 + bounce * 0.018 : 0) + (reduced ? 0 : 0.26 * clearProgress))
     content.alpha = 1 - clearProgress
     glow.visible = selected
-    sheen.alpha = selected ? 0.23 : 0.12
+    const brightness = settling && !reduced
+      ? 0.28 * (1 - clampProgress(elapsed, Math.min(duration || 140, 140)))
+      : 0
+    sheen.alpha = (selected ? 0.23 : 0.12) + brightness
   }
 
   return { node, place, update, decorate, get at() { return at } }
@@ -147,13 +153,14 @@ export function createScene(
     if (!reduced) visualTime += ticker.deltaMS
     water.update(visualTime)
     effects.updateRipples(ticker.deltaMS, reduced)
+    effects.updateSparkles(ticker.deltaMS, reduced)
 
     if (frame && !finished) elapsed += ticker.deltaMS
     const duration = frame?.duration ?? 0
     const progress = clampProgress(elapsed, reduced ? Math.min(duration, 35) : duration)
     for (const tile of tileViews.values()) {
       tile.update(elapsed, frame?.motion, reduced)
-      tile.decorate(tile.at === selected, visualTime, clearing.has(tile.at) ? progress : 0, reduced)
+      tile.decorate(tile.at === selected, visualTime, clearing.has(tile.at) ? progress : 0, reduced, elapsed)
     }
 
     if (frame) {
@@ -191,7 +198,7 @@ export function createScene(
           tileLayer.addChild(tile.node)
           tileViews.set(gem.id, tile)
         }
-        tile.place(gem)
+        tile.place(gem, !!frame?.lifting)
       }
       effects.setFrame(frame, preference.matches)
     },

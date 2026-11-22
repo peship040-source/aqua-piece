@@ -1,0 +1,10 @@
+AQUA PIECE Phase 7c (design only): restyle the collection （図鑑） screen as an aquarium tank. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, src/game/items.ts, src/components/ItemIcon.tsx (read briefly). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/item-data changes — presentation of the collection screen only. Keep the back button and the owned count (x/10) display.
+
+Aquarium presentation:
+- The item area becomes a tank: a framed panel with a glass-like border and subtle inner highlight, a water gradient inside (lighter at the top), a sandy bottom strip along the base, and a few simple CSS/SVG decorations (seaweed strands, small coral/rock shapes) placed at the bottom — decorations must not overlap items awkwardly.
+- Instead of a uniform grid, lay the 10 items out on 2-3 "shelves" (rows at different heights resting above the sand / on rock ledges), with slight per-item horizontal offsets so it feels arranged, not gridded. Each item sits on a small shadow/ledge.
+- Owned items: full-color ItemIcon, name below; a few of them (deterministic by index) get a very gentle bobbing animation (off under prefers-reduced-motion).
+- Unowned items: silhouette (existing approach) with ??? and the hint text still visible.
+- Tapping an item still shows its details the same way as the current screen does (name + flavor text for owned, hint for unowned) — preserve the existing detail behavior, just restyled to fit the tank theme if it is a separate panel.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

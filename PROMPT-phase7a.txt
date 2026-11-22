@@ -1,0 +1,9 @@
+AQUA PIECE Phase 7a (design only): animated sea ambience, richer clear effects, title logo. Work ONLY inside ~/workspace/aqua-piece. Do NOT search, list, or read anything outside this project directory. Start editing files immediately; the only files you need are src/main.tsx, src/styles.css, src/pixi/scene.ts, src/pixi/effects.ts (read them first, briefly). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data changes.
+
+1) Sea ambience overlay (React + CSS): above the sea background, below UI content. Slowly rising bubbles: ~12 absolutely-positioned dots, varied size/opacity, CSS keyframes animating transform+opacity only, positions/durations computed once via useMemo from the index (no Math.random per render). Plus one soft diagonal light-ray band (very low opacity gradient) slowly swaying. pointer-events:none, aria-hidden. Disable all of it under prefers-reduced-motion.
+
+2) Title logo on the stage select screen: restyle the "Aqua Piece" title — big bold rounded feel (font-weight/letter-spacing), gradient text light aqua to deep teal, soft glow, small CSS bubble accents, gentle float animation (off under prefers-reduced-motion).
+
+3) Pixi clear juice (src/pixi/effects.ts / scene.ts): on clears, add small sparkle particles in the cleared gems' colors drifting up and fading (pool them, max ~120 concurrent), in addition to existing bubbles. Chain >= 2: the chain/score popup gets a quick scale bounce. Newly dropped tiles get a brief brightness settle without changing step timing.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

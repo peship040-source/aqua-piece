@@ -40,6 +40,7 @@ export function createWater(app: Application) {
 }
 
 const PARTICLE_COUNT = 72
+const SPARKLE_COUNT = 120
 const RIPPLE_DURATION = 300
 
 export function createEffects(layer: Container) {
@@ -60,6 +61,13 @@ export function createEffects(layer: Container) {
     layer.addChild(shape)
     return { shape, x: 0, y: 0, vx: 0, vy: 0 }
   })
+  const sparkles = Array.from({ length: SPARKLE_COUNT }, () => {
+    const shape = layer.addChild(new Graphics()
+      .poly([0, -4, 1, -1, 3, 0, 1, 1, 0, 4, -1, 1, -3, 0, -1, -1]).fill(0xffffff))
+    shape.visible = false
+    return { shape, x: 0, y: 0, drift: 0, rise: 0, elapsed: 0, duration: 0 }
+  })
+  let nextSparkle = 0
   const points = layer.addChild(new Text({
     style: {
       fontFamily: 'system-ui, sans-serif', fontWeight: '900', fontSize: 25,
@@ -77,6 +85,7 @@ export function createEffects(layer: Container) {
     particles.forEach(({ shape }) => { shape.visible = false })
     const effect = frame?.effect
     points.visible = !!effect
+    points.scale.set(1)
     if (!frame || !effect) return
     points.text = `+${effect.points.toLocaleString()}`
     points.x = Math.max(CELL, Math.min(BOARD_SIZE - CELL, xOf(effect.at)))
@@ -116,6 +125,21 @@ export function createEffects(layer: Container) {
         particle.shape.visible = true
       }
     }
+
+    const sparkleCount = Math.min(effect.cells.length * 3, SPARKLE_COUNT)
+    for (let i = 0; i < sparkleCount; i++) {
+      const at = effect.cells[i % effect.cells.length]
+      const sparkle = sparkles[nextSparkle]
+      nextSparkle = (nextSparkle + 1) % sparkles.length
+      sparkle.x = xOf(at) + (i * 11 + at * 3) % 25 - 12
+      sparkle.y = yOf(at) + (i * 7 + at) % 19 - 9
+      sparkle.drift = (i * 13 + at) % 25 - 12
+      sparkle.rise = 25 + (i * 9 + at) % 27
+      sparkle.elapsed = 0
+      sparkle.duration = 360 + (i * 37 + at * 11) % 190
+      sparkle.shape.tint = gems[frame.tiles[at].tile.color].light
+      sparkle.shape.visible = true
+    }
   }
 
   function update(frame: Frame, progress: number, reduced: boolean) {
@@ -124,12 +148,29 @@ export function createEffects(layer: Container) {
     flash.alpha = (1 - progress) ** 2 * (reduced ? 0.55 : 1)
     points.y = yOf(effect.at) - (reduced ? 0 : frame.lifting ? 12 + 16 * progress : 12 * progress)
     points.alpha = frame.lifting ? 1 - progress : Math.min(1, 0.65 + progress * 2)
+    const bounce = Math.min(1, progress / 0.65)
+    points.scale.set(!reduced && !frame.lifting && frame.chain >= 2
+      ? 1 + Math.sin(Math.PI * bounce) * (1 - bounce) * 0.42
+      : 1)
     for (let i = 0; i < active; i++) {
       const { shape, x, y, vx, vy } = particles[i]
       shape.visible = !reduced
       shape.position.set(x + vx * progress, y + vy * progress + 12 * progress ** 2)
       shape.alpha = (1 - progress) ** 1.5
       shape.scale.set(1 - progress * 0.55)
+    }
+  }
+
+  function updateSparkles(deltaMS: number, reduced: boolean) {
+    for (const sparkle of sparkles) {
+      const { shape } = sparkle
+      if (!shape.visible) continue
+      sparkle.elapsed += deltaMS
+      const progress = Math.min(1, sparkle.elapsed / sparkle.duration)
+      shape.visible = !reduced && progress < 1
+      shape.position.set(sparkle.x + sparkle.drift * progress, sparkle.y - sparkle.rise * progress)
+      shape.alpha = (1 - progress) ** 1.4
+      shape.scale.set(1.15 - progress * 0.7)
     }
   }
 
@@ -155,5 +196,5 @@ export function createEffects(layer: Container) {
     }
   }
 
-  return { setFrame, update, ripple, updateRipples }
+  return { setFrame, update, ripple, updateRipples, updateSparkles }
 }

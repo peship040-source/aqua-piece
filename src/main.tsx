@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { animateTurn, createTileLayout, type Frame } from './animation'
 import { ItemIcon } from './components/ItemIcon'
@@ -10,6 +10,10 @@ import { Board } from './pixi/Board'
 import { gems } from './pixi/textures'
 import './styles.css'
 
+declare module 'react' {
+  export function useMemo<T>(factory: () => T, deps: readonly unknown[]): T
+}
+
 const newSeed = () => crypto.getRandomValues(new Uint32Array(1))[0]
 const start = (def: StageDef, seed = newSeed()): CurrentGame => ({ seed, game: stageFor(def, seededRng(seed)) })
 const formatNumber = (value: number) => value.toLocaleString('ja-JP')
@@ -17,6 +21,27 @@ const motionPreference = '(prefers-reduced-motion: reduce)'
 
 function collectionColor(def: StageDef) {
   return def.goalType === 'collect' ? def.targetColor : undefined
+}
+
+function SeaAmbience() {
+  const bubbles = useMemo(() => Array.from({ length: 12 }, (_, index) => {
+    const duration = 18 + (index * 7) % 15
+    return {
+      left: `${5 + (index * 17) % 91}%`,
+      width: 4 + (index * 5) % 14,
+      animationDuration: `${duration}s`,
+      animationDelay: `${-duration * ((index * 7) % 13) / 13}s`,
+      '--bubble-opacity': 0.16 + (index % 5) * 0.055,
+      '--bubble-drift': `${(index % 2 ? -1 : 1) * (12 + (index * 11) % 28)}px`,
+    }
+  }), [])
+
+  return (
+    <div className="sea-ambience" aria-hidden="true">
+      <div className="sea-ray" />
+      {bubbles.map((style, index) => <span className="sea-bubble" key={index} style={style} />)}
+    </div>
+  )
 }
 
 function Stars({ count, animate = false }: { count: number; animate?: boolean }) {
@@ -34,63 +59,81 @@ function Stars({ count, animate = false }: { count: number; animate?: boolean })
   )
 }
 
+const diveStops = [28, 50, 72, 50]
+const diveRoute = STAGES.map((_, index) => {
+  const x = diveStops[index % diveStops.length]
+  const y = index * 100 + 50
+  if (index === 0) return `M ${x} ${y}`
+  const previousX = diveStops[(index - 1) % diveStops.length]
+  return `C ${previousX} ${y - 50}, ${x} ${y - 50}, ${x} ${y}`
+}).join(' ')
+
 function StageSelect({ save, resume, choose, openCollection }: {
   save: Save; resume: () => void; choose: (def: StageDef) => void; openCollection: () => void
 }) {
+  const { unlocked, stars, best, collection } = save.progress
+  const nextId = STAGES.find(def => def.id <= unlocked && !stars[def.id])?.id
+
   return (
     <main className="game select-screen">
       <header className="select-header">
-        <h1>Aqua Piece</h1>
-      </header>
-      {save.current && (
-        <button type="button" className="button button-primary continue" onClick={resume}>
-          <strong>つづきから</strong>
-          <span>ステージ {save.current.game.stageId}</span>
-        </button>
-      )}
-      <section aria-labelledby="stage-list-title">
-        <div className="stage-list-heading">
-          <h2 id="stage-list-title" className="stage-list-title">ステージをえらぶ</h2>
+        <h1 className="title-logo"><span>Aqua Piece</span></h1>
+        {save.current && (
+          <button type="button" className="button button-primary continue" onClick={resume}>
+            <strong>つづきから</strong>
+            <span>ステージ {save.current.game.stageId}</span>
+          </button>
+        )}
+        <div className="dive-map-heading">
+          <h2 id="dive-map-title">ステージをえらぶ</h2>
           <button type="button" className="button collection-link" onClick={openCollection}>
-            ずかん <span>{save.progress.collection.length}/{ITEMS.length}</span>
+            図鑑 <span>{collection.length}/{ITEMS.length}</span>
           </button>
         </div>
-        <div className="stage-list">
-          {STAGES.map(def => {
-            const locked = def.id > save.progress.unlocked
-            const stars = save.progress.stars[def.id] ?? 0
-            const best = save.progress.best[def.id]
-            const color = collectionColor(def)
-            const item = itemForStage(def.id)
-            const state = locked ? 'locked' : stars > 0 ? 'cleared' : 'unlocked'
-            return (
-              <button
-                key={def.id} type="button" className={`button card stage-card stage-${state}`}
-                disabled={locked} onClick={() => choose(def)}
-              >
-                <span className="stage-number">ステージ <strong>{def.id}</strong></span>
-                <span className="stage-goal">
-                  {color === undefined ? `スコア ${formatNumber(def.target)}` : (
-                    <><img src={gems[color].asset} alt="" />{gems[color].label} {def.target}個あつめよう</>
-                  )}
-                </span>
-                <span className="stage-record">
-                  <span className="stage-record-top">
-                    <Stars count={stars} />
-                    {item && (
-                      <ItemIcon
-                        itemId={item.id} owned={save.progress.collection.includes(item.id)}
-                        size={24} label={item.name}
-                      />
-                    )}
-                  </span>
-                  {locked ? (
-                    <span className="stage-lock" role="img" aria-label="ロック中" />
-                  ) : best !== undefined && <small>ベスト <strong>{formatNumber(best)}</strong></small>}
-                </span>
-              </button>
-            )
-          })}
+      </header>
+      <section className="dive-map" aria-labelledby="dive-map-title" {...{ tabIndex: 0 }}>
+        <div className="dive-water">
+          <p className="dive-depth">浅瀬 <span>0 m</span></p>
+          <div className="dive-stops">
+            <svg
+              className="dive-route" viewBox={`0 0 100 ${STAGES.length * 100}`} width={100} height={STAGES.length * 100}
+              aria-hidden="true" {...{ preserveAspectRatio: 'none' }}
+            >
+              <path className="dive-route-edge" d={diveRoute} />
+              <path className="dive-route-dashes" d={diveRoute} />
+            </svg>
+            {STAGES.map((def, index) => {
+              const locked = def.id > unlocked
+              const count = stars[def.id] ?? 0
+              const record = best[def.id]
+              const color = collectionColor(def)
+              const item = itemForStage(def.id)
+              const stop = index % diveStops.length
+              const state = locked ? 'locked' : count > 0 ? 'cleared' : def.id === nextId ? 'next' : 'open'
+              return (
+                <div className="dive-stop" key={def.id} style={{ '--dive-x': `${diveStops[stop]}%` }}>
+                  <button
+                    type="button" className={`dive-node dive-node-${state}${stop >= 2 ? ' dive-node-reverse' : ''}`}
+                    disabled={locked} onClick={() => choose(def)}
+                  >
+                    <span className="dive-badge">
+                      <span className="dive-stage-label">ステージ </span>{def.id}
+                      {locked && <span className="dive-lock"><span className="stage-lock" role="img" aria-label="ロック中" /></span>}
+                      {item && collection.includes(item.id) && (
+                        <span className="dive-reward"><ItemIcon itemId={item.id} owned size={22} label={item.name} /></span>
+                      )}
+                      <Stars count={count} />
+                    </span>
+                    <span className="dive-note">
+                      <strong>{color === undefined ? `スコア ${formatNumber(def.target)}` : `${gems[color].label}×${def.target}`}</strong>
+                      {record !== undefined && <small>ベスト {formatNumber(record)}</small>}
+                    </span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <p className="dive-depth">深海 <span>−{(STAGES.length - 1) * 10} m</span></p>
         </div>
       </section>
     </main>
@@ -100,6 +143,7 @@ function StageSelect({ save, resume, choose, openCollection }: {
 function Collection({ collection, back }: { collection: Progress['collection']; back: () => void }) {
   const [selected, setSelected] = useState<ItemDef | null>(null)
   const detail = useRef<HTMLDivElement>(null)
+  const selectedOwned = selected && collection.includes(selected.id)
 
   useEffect(() => {
     if (selected) detail.current?.scrollIntoView({ block: 'nearest' })
@@ -112,31 +156,41 @@ function Collection({ collection, back }: { collection: Progress['collection']; 
         <h1>ずかん</h1>
         <p>{collection.length} / {ITEMS.length} あつめた</p>
       </header>
-      <div className="collection-grid">
-        {ITEMS.map(item => (
-          collection.includes(item.id) ? (
+      <div className="collection-tank">
+        {ITEMS.map(item => {
+          const owned = collection.includes(item.id)
+          return (
             <button
-              key={item.id} type="button" className="button card collection-item"
+              key={item.id} type="button" className={owned ? 'collection-item' : 'collection-item collection-item-locked'}
               aria-pressed={selected === item} aria-controls="collection-detail" onClick={() => setSelected(item)}
             >
-              <ItemIcon itemId={item.id} owned size={50} />
-              <strong>{item.name}</strong>
+              <span className="collection-perch"><ItemIcon itemId={item.id} owned={owned} size={50} /></span>
+              <strong>{owned ? item.name : '？？？'}</strong>
+              {!owned && <small>ステージ{item.stageId}をクリアしよう</small>}
             </button>
-          ) : (
-            <div key={item.id} className="card collection-item collection-item-locked">
-              <ItemIcon itemId={item.id} owned={false} size={50} />
-              <strong>？？？</strong>
-              <small>ステージ{item.stageId}をクリアしよう</small>
-            </div>
           )
-        ))}
+        })}
+        <div className="collection-sand" aria-hidden="true">
+          <svg viewBox="0 0 72 52" width={72} height={52}>
+            <path fill="none" stroke="#428c7b" strokeWidth="4" strokeLinecap="round"
+              d="M25 43c-15-14 5-20-5-35m8 35c-3-19 15-23 10-39M24 44C17 39 8 39 7 28" />
+            <path fill="#687f79" d="m10 48 6-9 13-3 10 6 4 7Z" />
+            <path fill="#a0a397" d="m45 48 4-6 9-1 5 7Z" />
+          </svg>
+          <svg viewBox="0 0 66 44" width={66} height={44}>
+            <path fill="none" stroke="#cc8f85" strokeWidth="4" strokeLinecap="round"
+              d="M40 36c4-10-4-19 0-29m1 21c-7-2-15-3-16-13m17 11c7 0 13-4 15-11m-9 9 1-13" />
+            <path fill="#786e76" d="m24 39 7-8 14-1 10 5 5 6Z" />
+            <path fill="#aca092" d="m6 38 4-6 9 1 4 6Z" />
+          </svg>
+        </div>
       </div>
       <div id="collection-detail" aria-live="polite" ref={detail}>
         {selected && (
-          <div className="card collection-detail">
-            <h2>{selected.name}</h2>
-            <p>{selected.flavor}</p>
-            <small>ステージ{selected.stageId}のごほうび</small>
+          <div className="collection-detail">
+            <h2>{selectedOwned ? selected.name : '？？？'}</h2>
+            <p>{selectedOwned ? selected.flavor : `ステージ${selected.stageId}をクリアしよう`}</p>
+            {selectedOwned && <small>ステージ{selected.stageId}のごほうび</small>}
           </div>
         )}
       </div>
@@ -432,6 +486,7 @@ function App() {
   return (
     <>
       <div className="sea" aria-hidden="true" />
+      <SeaAmbience />
       {screen.name === 'select' ? (
         <StageSelect save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
       ) : screen.name === 'collection' ? (
