@@ -1,0 +1,15 @@
+Phase 3 for AQUA PIECE in this repo. Read SPEC.md and PHASE2-NOTES.md first.
+Owner decision: visuals are a priority. Migrate the BOARD rendering from DOM/CSS to PixiJS (Canvas/WebGL) now. Add dependency `pixi.js` (v8). No sound. No other new deps.
+
+Keep unchanged: game rules/scoring/Stage 1 params/save behaviour, the pure TS engine in src/game/ and its step API (playWithSteps), all existing tests (must keep passing). React stays for HUD, progress bar, buttons and result modal.
+
+Implement:
+1. A Pixi component (e.g. src/pixi/Board.tsx + helpers in src/pixi/) that mounts a Pixi Application sized to the board area (responsive square, devicePixelRatio capped at 2), transparent or sea-gradient stage background with a few drifting bubble sprites inside the canvas.
+2. Tiles as Pixi sprites/containers: draw each of the 6 gem types as a generated texture (Graphics + fill gradient, gem-like rounded shape, glossy highlight, soft shadow) in its color, with its symbol glyph (●◆▲■✚⬟) rendered on top for colorblind distinction. Special tiles keep a distinct mark/ring (line-row ↔, line-column ↕, burst ✦, color ◎).
+3. Playback: consume the same resolve steps as the current DOM version. Animate with Pixi Ticker and a small hand-written tween helper: swap slide, invalid shake-back, clear = scale-up + fade with a small particle burst (circles/sparkles, pooled, cheap), fall = ease-in slide proportional to distance, new tiles drop from above, special activation = quick beam/ring flash. Lock input during playback, same as now.
+4. Interaction: Pixi pointer events on tiles (tap-tap select/swap). Selected tile gets a glow/outline + gentle bounce. Keep an accessible fallback: visually-hidden DOM buttons grid mirroring the board for screen readers/keyboard is NOT required; instead set canvas role="img" with an aria-label describing the board state, and keep the text status line in the HUD.
+5. Remove the old DOM board rendering and its now-unused CSS, keep the sea page background/HUD styling. Respect prefers-reduced-motion: shorten tweens and skip particles.
+6. Structure the Pixi code so textures can later be swapped for image assets without touching the engine or playback logic (a texture-provider module).
+
+Finish: run `npm test` and `npm run build`; fix until both pass if your sandbox allows, otherwise state exactly what you could not run. Do not git commit.
+Final message: files changed, how rendering/playback is structured, test/build results, bundle size change.

@@ -1,0 +1,15 @@
+Phase 4 for AQUA PIECE in this repo. Read PHASE2-NOTES.md (Phase 2/3 sections) first.
+Owner approved the art direction: replace the Graphics-drawn gems with real image assets and use the painted sea background. Assets are already prepared in the repo:
+- src/assets/gems/gem-coral.webp, gem-amber.webp, gem-sun.webp, gem-emerald.webp, gem-ocean.webp, gem-violet.webp (transparent WebP, ~256px)
+- src/assets/sea-bg.webp (768x1365 painted underwater background)
+
+Implement:
+1. Texture provider (src/pixi/textures.ts): load the 6 WebP assets with Pixi Assets and map engine color index -> asset: 0 coral, 1 ocean, 2 amber, 3 violet, 4 sun, 5 emerald. Update the gems metadata names to match (Coral drop, Ocean diamond, Amber orb, Violet square, Sun hexagon, Emerald oval). Tiles are Sprites using these textures, scaled to fit the cell with a small margin, aspect preserved. Remove the old Graphics gem drawing and REMOVE the glyph overlay for normal tiles (shape+color now distinguish them). Keep special-tile marks (line-row ↔, line-column ↕, burst ✦, color ◎) drawn on top, plus a soft white ring/glow behind special tiles so they read as special.
+2. Depth: each tile gets a soft drop shadow (a dark blurred ellipse sprite or a duplicated silhouette under the sprite, cheap) that follows it during tweens. The board sits on a translucent deep-sea panel with rounded corners over the background.
+3. Background: use sea-bg.webp as the full-screen app background (CSS background-image, cover, centered) under a subtle dark gradient for HUD readability. Keep the in-canvas bubbles.
+4. Tap ripple: on tile tap, an expanding fading ring at the tapped cell (pooled, cheap). Clear bursts stay as-is (bubble-like particles).
+5. Loading: Pixi board must handle async texture loading gracefully (show the board once textures are ready; a simple loading state in the HUD area is fine). Vite inlines/imports the assets normally (standard import of .webp files; add a vite-env type declaration if needed).
+6. Unchanged: engine, rules, scoring, save, step playback structure, HUD/modal behaviour, reduced-motion handling. Existing tests must keep passing.
+
+Finish: run `npm test` and `npm run build`; if your sandbox cannot reach the npm registry, say so (pixi.js is already installed in node_modules from the outer environment, so build should work). Do not git commit.
+Final message: files changed, asset mapping, test/build results, total bundle size.

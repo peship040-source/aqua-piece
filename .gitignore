@@ -1,0 +1,5 @@
+node_modules/
+dist/
+dist-widget/
+widget-fragment.html
+aqua-piece-play.html

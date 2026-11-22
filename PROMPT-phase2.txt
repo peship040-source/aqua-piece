@@ -1,0 +1,14 @@
+Phase 2 for AQUA PIECE in this repo. Read SPEC.md and PHASE2-NOTES.md first.
+Goal: visual + animation upgrade ONLY. Game rules, scoring, stage 1 parameters, save format behaviour stay the same. Existing tests must keep passing (extend them if you add APIs; do not weaken them).
+
+Implement:
+1. Animation pipeline: expose resolve steps from the engine (e.g. steps after swap, each clear set, after gravity+refill, per chain) while keeping the current play() API working. Give tiles stable ids so the UI can track movement. UI plays steps sequentially with input locked during animation.
+2. Falling feel: surviving tiles slide down with CSS transition (distance-based duration, ease-in), new tiles enter from above the board, cleared tiles pop/shrink+fade before falling, swap animates both tiles, invalid swap shakes back.
+3. Chain/score effects: chain banner (e.g. "2 Chain!"), floating score popups at clear positions, brief board glow on special activation.
+4. Sea look: deep-sea gradient page background, soft light rays, a few drifting CSS bubbles (cheap, <15 elements), board in a frosted-glass frame with rounded corners and shadow. Tiles become seaglass gems: translucent color gradient, glossy top highlight, inner shadow, rounded, symbol glyph kept for colorblind distinction, special marks kept.
+5. Game-app HUD: card-style HUD, goal progress bar (score/1000), moves-left badge that pulses when <=5, selected tile glow+bounce, win/lose result as a modal overlay with score/best and buttons.
+6. Respect prefers-reduced-motion: disable bubble/ray motion and shorten transitions.
+CSS transitions only, no new dependencies. Keep total CSS reasonable.
+
+Finish: run `npm test` and `npm run build` if the sandbox allows; if npm registry is unreachable in your sandbox, say so explicitly and at least run a TypeScript check with what's installed. Do not git commit.
+Final message: files changed, how animation steps work, test/build results.

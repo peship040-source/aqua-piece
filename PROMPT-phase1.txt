@@ -1,0 +1,5 @@
+Implement Phase 1 in this empty repo (only SPEC.md, PROMPT-phase1.txt, .git exist).
+Read SPEC.md first and follow it exactly. Scaffold Vite + React + TypeScript yourself (npm create / manual files, npm install). Keep dependencies minimal: react, react-dom, vite, @vitejs/plugin-react, typescript, vitest.
+Build the pure TS engine in src/game/ with unit tests, minimal React UI per spec, localStorage save, README.md.
+Finish by running `npm test` and `npm run build`; fix failures until both pass. Do not git commit. Do not add anything from the out-of-scope list. Keep code compact.
+Final message: list created files, test count/result, build result.
