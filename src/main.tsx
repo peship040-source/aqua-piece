@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { animateTurn, createTileLayout, type Frame } from './animation'
+import { ItemIcon } from './components/ItemIcon'
 import { adjacent, playWithSteps, seededRng, stageFor, status, type Game } from './game/engine'
+import { ITEMS, itemForStage, type ItemDef } from './game/items'
 import { earnedStars, STAGES, stageDef, type StageDef } from './game/stages'
 import { loadSave, recordClear, storeSave, type CurrentGame, type Progress, type Save } from './save'
 import { Board } from './pixi/Board'
@@ -32,7 +34,9 @@ function Stars({ count, animate = false }: { count: number; animate?: boolean })
   )
 }
 
-function StageSelect({ save, resume, choose }: { save: Save; resume: () => void; choose: (def: StageDef) => void }) {
+function StageSelect({ save, resume, choose, openCollection }: {
+  save: Save; resume: () => void; choose: (def: StageDef) => void; openCollection: () => void
+}) {
   return (
     <main className="game select-screen">
       <header className="select-header">
@@ -45,13 +49,19 @@ function StageSelect({ save, resume, choose }: { save: Save; resume: () => void;
         </button>
       )}
       <section aria-labelledby="stage-list-title">
-        <h2 id="stage-list-title" className="stage-list-title">ステージをえらぶ</h2>
+        <div className="stage-list-heading">
+          <h2 id="stage-list-title" className="stage-list-title">ステージをえらぶ</h2>
+          <button type="button" className="button collection-link" onClick={openCollection}>
+            ずかん <span>{save.progress.collection.length}/{ITEMS.length}</span>
+          </button>
+        </div>
         <div className="stage-list">
           {STAGES.map(def => {
             const locked = def.id > save.progress.unlocked
             const stars = save.progress.stars[def.id] ?? 0
             const best = save.progress.best[def.id]
             const color = collectionColor(def)
+            const item = itemForStage(def.id)
             const state = locked ? 'locked' : stars > 0 ? 'cleared' : 'unlocked'
             return (
               <button
@@ -65,7 +75,15 @@ function StageSelect({ save, resume, choose }: { save: Save; resume: () => void;
                   )}
                 </span>
                 <span className="stage-record">
-                  <Stars count={stars} />
+                  <span className="stage-record-top">
+                    <Stars count={stars} />
+                    {item && (
+                      <ItemIcon
+                        itemId={item.id} owned={save.progress.collection.includes(item.id)}
+                        size={24} label={item.name}
+                      />
+                    )}
+                  </span>
                   {locked ? (
                     <span className="stage-lock" role="img" aria-label="ロック中" />
                   ) : best !== undefined && <small>ベスト <strong>{formatNumber(best)}</strong></small>}
@@ -75,6 +93,53 @@ function StageSelect({ save, resume, choose }: { save: Save; resume: () => void;
           })}
         </div>
       </section>
+    </main>
+  )
+}
+
+function Collection({ collection, back }: { collection: Progress['collection']; back: () => void }) {
+  const [selected, setSelected] = useState<ItemDef | null>(null)
+  const detail = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (selected) detail.current?.scrollIntoView({ block: 'nearest' })
+  }, [selected])
+
+  return (
+    <main className="game collection-screen">
+      <header className="play-header collection-header">
+        <button type="button" className="button back" onClick={back}>もどる</button>
+        <h1>ずかん</h1>
+        <p>{collection.length} / {ITEMS.length} あつめた</p>
+      </header>
+      <div className="collection-grid">
+        {ITEMS.map(item => (
+          collection.includes(item.id) ? (
+            <button
+              key={item.id} type="button" className="button card collection-item"
+              aria-pressed={selected === item} aria-controls="collection-detail" onClick={() => setSelected(item)}
+            >
+              <ItemIcon itemId={item.id} owned size={50} />
+              <strong>{item.name}</strong>
+            </button>
+          ) : (
+            <div key={item.id} className="card collection-item collection-item-locked">
+              <ItemIcon itemId={item.id} owned={false} size={50} />
+              <strong>？？？</strong>
+              <small>ステージ{item.stageId}をクリアしよう</small>
+            </div>
+          )
+        ))}
+      </div>
+      <div id="collection-detail" aria-live="polite" ref={detail}>
+        {selected && (
+          <div className="card collection-detail">
+            <h2>{selected.name}</h2>
+            <p>{selected.flavor}</p>
+            <small>ステージ{selected.stageId}のごほうび</small>
+          </div>
+        )}
+      </div>
     </main>
   )
 }
@@ -140,8 +205,11 @@ function Hud({ def, score, count, moves }: { def: StageDef; score: number; count
 const clearTitle = 'ステージクリア！'
 const lossTitle = '手数を使い切りました'
 
-function Result({ def, game, won, restart, select, next }: {
-  def: StageDef; game: Game; won: boolean; restart: () => void; select: () => void; next?: () => void
+type Reward = { item: ItemDef; isNew: boolean }
+
+function Result({ def, game, won, reward, restart, select, next }: {
+  def: StageDef; game: Game; won: boolean; reward?: Reward
+  restart: () => void; select: () => void; next?: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => dialog.current?.showModal(), [])
@@ -169,6 +237,22 @@ function Result({ def, game, won, restart, select, next }: {
           </div>
         )}
       </dl>
+      {reward && (
+        reward.isNew ? (
+          <div className="result-reward">
+            <ItemIcon itemId={reward.item.id} owned size={58} />
+            <span>
+              <small>あたらしいアイテム！</small>
+              <strong>{reward.item.name}</strong>
+            </span>
+          </div>
+        ) : (
+          <div className="result-reward-owned">
+            <ItemIcon itemId={reward.item.id} owned size={22} label={reward.item.name} />
+            <small>（ずかん登録ずみ）</small>
+          </div>
+        )
+      )}
       <div className="result-actions">
         {next && <button type="button" className="button button-primary" onClick={next}>つぎのステージ</button>}
         <button type="button" className={`button${next ? '' : ' button-primary'}`} onClick={restart}>もういちど</button>
@@ -184,7 +268,7 @@ type Playback = { frames: PlayFrame[]; index: number; message: string }
 function Play({ initial, progress, onGameChange, select, choose }: {
   initial: CurrentGame
   progress: Progress
-  onGameChange: (current: CurrentGame, def: StageDef) => void
+  onGameChange: (current: CurrentGame, def: StageDef) => Reward | undefined
   select: () => void
   choose: (def: StageDef) => void
 }) {
@@ -198,6 +282,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   const [chain, setChain] = useState(0)
   const [message, setMessage] = useState('')
   const [playback, setPlayback] = useState<Playback | null>(null)
+  const [reward, setReward] = useState<Reward | undefined>(undefined)
   const resolving = useRef(false)
   const frame = playback?.frames[playback.index]
   const score = frame?.score ?? game.score
@@ -225,6 +310,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
     setSelected(null)
     setChain(0)
     setMessage('')
+    setReward(undefined)
     onGameChange(current, def)
   }
 
@@ -262,7 +348,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
         setCurrent(current)
         setTiles(layout.place(turn.game.board))
         setChain(turn.chain)
-        onGameChange(current, def)
+        setReward(onGameChange(current, def))
       }
     }
   }
@@ -294,7 +380,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
       </footer>
       {!playback && result !== 'playing' && (
         <Result
-          def={def} game={game} won={result === 'won'} restart={restart} select={select}
+          def={def} game={game} won={result === 'won'} reward={reward} restart={restart} select={select}
           next={next && next.id <= progress.unlocked ? () => choose(next) : undefined}
         />
       )}
@@ -302,11 +388,12 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   )
 }
 
-type Screen = { name: 'select' } | { name: 'play'; initial: CurrentGame }
+type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; initial: CurrentGame }
 
 function App() {
   const [save, setSave] = useState(loadSave)
   const [screen, setScreen] = useState<Screen>({ name: 'select' })
+  useEffect(() => window.scrollTo(0, 0), [screen])
 
   function persist(next: Save) {
     storeSave(next)
@@ -317,12 +404,18 @@ function App() {
     const game = current.game
     const result = status(game, def)
     let progress = save.progress
+    let reward: Reward | undefined
     if (result === 'won') {
       progress = recordClear(progress, def, game)
+      const item = itemForStage(def.id)
+      if (item && progress.collection.includes(item.id)) {
+        reward = { item, isNew: !save.progress.collection.includes(item.id) }
+      }
     } else if (game.score > (progress.best[def.id] ?? 0)) {
       progress = { ...progress, best: { ...progress.best, [def.id]: game.score } }
     }
     persist({ ...save, progress, current: result === 'playing' ? current : null })
+    return reward
   }
 
   function choose(def: StageDef) {
@@ -340,7 +433,9 @@ function App() {
     <>
       <div className="sea" aria-hidden="true" />
       {screen.name === 'select' ? (
-        <StageSelect save={save} choose={choose} resume={resume} />
+        <StageSelect save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
+      ) : screen.name === 'collection' ? (
+        <Collection collection={save.progress.collection} back={() => setScreen({ name: 'select' })} />
       ) : (
         <Play
           key={screen.initial.game.stageId} initial={screen.initial} progress={save.progress}

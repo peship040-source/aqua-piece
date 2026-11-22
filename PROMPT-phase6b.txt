@@ -1,0 +1,18 @@
+AQUA PIECE Phase 6b (UI): collection （図鑑） screen with SVG item icons, reward reveal in the result modal, and stage-card reward markers. Phase 6a is done: src/game/items.ts (ITEMS, itemForStage), stages 1-10 in stages.ts, save v3 with progress.collection (item ids) in src/save.ts. Work in ~/workspace/aqua-piece. Read src/main.tsx, src/styles.css, src/game/items.ts, src/save.ts first. All 53 existing tests must still pass. No sound, no new image asset files — item art is inline SVG in code.
+
+1) ItemIcon component (new src/components/ItemIcon.tsx or inside main.tsx if simpler):
+- Props: itemId, owned (boolean), size.
+- Draw each of the 10 items as a simple flat-design inline SVG (viewBox 0 0 64 64, rounded shapes, 2-3 harmonious colors each, consistent soft style that fits the sea theme): seaglass-green (rounded glass shard, green with a lighter highlight), seaglass-blue (teardrop shard, deep blue), coral-shell (spiral shell, peach/coral), starfish (orange, five arms, small dots), pearl-oyster (two shell halves, grey-lavender, white pearl), seahorse (teal, curled tail), jellyfish (pink dome + wavy tentacles), coral-piece (pink branching coral), tropical-fish (yellow/blue fish), sea-turtle (green shell + flippers).
+- When owned=false, render the same shapes in a single dark desaturated fill (silhouette) — reuse the paths with a uniform fill override where practical.
+
+2) Collection screen:
+- Screen state gains 'collection'. Stage select gets a 「ずかん」 button (with owned count, e.g. 「ずかん 3/10」) that opens it; a back button returns to select.
+- Grid of all 10 items in stage order. Owned: color icon + item name; tapping (or selecting) an owned item shows its flavor text and 「ステージNのごほうび」 below the grid or in a detail area. Unowned: silhouette icon + 「？？？」 and hint 「ステージNをクリアしよう」.
+- Header: 「ずかん」 title + progress 「X / 10 あつめた」.
+
+3) Result modal reward reveal:
+- On a win, compare progress.collection before and after recordClear: if the stage's item was newly added, show a reveal block in the modal: the item icon with a pop/glow CSS animation, 「あたらしいアイテム！」 and the item name. If already owned, show a small muted line 「（ずかん登録ずみ）」 with the small icon instead.
+
+4) Stage cards: add a small reward marker on each stage card — the stage's item icon (color if owned, silhouette if not) at a consistent corner, with the item name as title/aria text. Keep the existing card layout and locked logic; the select list now has 10 stages and must scroll comfortably.
+
+Run npm test, npm run build, and the widget build (npx vite build --config vite.widget.config.ts) at the end. Report: results of each command, changed/added files, decisions made. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

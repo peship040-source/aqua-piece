@@ -201,6 +201,27 @@ describe('Stage 1', () => {
 })
 
 describe('stage goals and rewards', () => {
+  it.each([
+    [6, 3, 22, 2000, 2500],
+    [7, undefined, 2400, 2900, 3400],
+    [8, 2, 30, 2200, 2800],
+    [9, undefined, 2600, 3100, 3600],
+    [10, 5, 32, 2400, 3000],
+  ] as const)('uses the specified goal and bonus thresholds for stage %i', (id, color, target, star2, star3) => {
+    const def = stageDef(id)!
+    const game = stageFor(def, seededRng(1))
+    expect(game).toMatchObject({ moves: 30, goal: target })
+    const almost = { ...game, score: color === undefined ? target - 1 : star3 }
+    if (color !== undefined) almost.collected[color] = target - 1
+    expect(status(almost)).toBe('playing')
+    const won = { ...almost, score: color === undefined ? target : 0 }
+    if (color !== undefined) won.collected[color] = target
+    expect(status(won)).toBe('won')
+    for (const [score, stars] of [[star2 - 1, 1], [star2, 2], [star3 - 1, 2], [star3, 3]]) {
+      expect(earnedStars(def, { ...won, score })).toBe(stars)
+    }
+  })
+
   it.each(STAGES)('initializes stage $id from its definition', def => {
     expect(stageDef(def.id)).toBe(def)
     expect(stageFor(def, seededRng(1))).toMatchObject({

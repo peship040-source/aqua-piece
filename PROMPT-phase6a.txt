@@ -1,0 +1,31 @@
+AQUA PIECE Phase 6a (logic only — no UI/CSS work): stages 6-10, collectible items, save v3 with collection. Work in ~/workspace/aqua-piece. Read src/game/stages.ts, src/save.ts, src/game/engine.ts (status/stageFor), and the existing tests first. All 41 existing tests must still pass (update only where shapes force it); add tests for the new logic. No sound, no asset changes.
+
+1) Stages 6-10 — append to STAGES in src/game/stages.ts (star2/star3 are score thresholds):
+6: collect color 3 (violet), target 22, moves 30, star2 2000, star3 2500
+7: score, target 2400, moves 30, star2 2900, star3 3400
+8: collect color 2 (amber), target 30, moves 30, star2 2200, star3 2800
+9: score, target 2600, moves 30, star2 3100, star3 3600
+10: collect color 5 (emerald), target 32, moves 30, star2 2400, star3 3000
+
+2) New src/game/items.ts:
+export type ItemDef = { id: string; stageId: number; name: string; flavor: string }
+ITEMS (one reward per stage, granted on first clear):
+stage 1: id 'seaglass-green', name 'みどりのシーグラス', flavor '波にみがかれた、やさしい緑のガラスのかけら。'
+stage 2: id 'coral-shell', name 'まきがい', flavor '耳をよせると、遠い海の音がする気がする。'
+stage 3: id 'starfish', name 'ヒトデ', flavor '岩場の人気者。五つの腕でのんびり日向ぼっこ。'
+stage 4: id 'seaglass-blue', name 'あおいシーグラス', flavor '深い青。長い旅をしてきたガラスのしずく。'
+stage 5: id 'pearl-oyster', name 'しんじゅ貝', flavor '中に小さな真珠をひとつ、隠し持っている。'
+stage 6: id 'seahorse', name 'タツノオトシゴ', flavor '海藻につかまって、ゆらゆら揺れている。'
+stage 7: id 'jellyfish', name 'クラゲ', flavor '触手が光る、夜の海のランプ。'
+stage 8: id 'coral-piece', name 'サンゴのかけら', flavor 'ピンクの枝サンゴ。魚たちの隠れ家だったもの。'
+stage 9: id 'tropical-fish', name 'トロピカルフィッシュ', flavor '黄色と青の小さな魚。サンゴの周りが大好き。'
+stage 10: id 'sea-turtle', name 'ウミガメ', flavor '何十年も海を旅する、大きな先輩。'
+Export ITEMS and itemForStage(stageId).
+
+3) Save v3 (src/save.ts, same key aqua-piece-v1):
+- Shape: { version: 3, progress: { unlocked, stars, best, collection: string[] }, current }.
+- recordClear: on a clear, also add the cleared stage's item id to progress.collection (if not already present). Change the unlock cap from 5 to STAGES.length (10).
+- Migration: v2 saves load into v3 with collection granted retroactively for every stage that already has stars > 0. v1 saves keep the existing v1→v2 migration and then get the same retroactive grant. Unparseable data → fresh v3 state.
+- Keep all existing exported functions working with compatible signatures (main.tsx already calls loadSave/storeSave/recordClear).
+
+Run npm test at the end and report: test results, changed/added files, decisions made. Do not run npm run build. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

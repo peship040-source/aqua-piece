@@ -80,7 +80,16 @@ button:focus-visible { outline: 2px solid #e3fffa; outline-offset: 3px; }
   margin-bottom: 22px;
 }
 .continue strong { font-size: 1rem; }
-.stage-list-title { margin: 0 0 10px; font-size: 1rem; letter-spacing: .06em; }
+.stage-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stage-list-title { margin: 0; font-size: 1rem; letter-spacing: .06em; }
+.collection-link { flex: none; }
+.collection-link span { margin-left: 4px; color: var(--label); font-variant-numeric: tabular-nums; }
 .stage-list { display: grid; gap: 9px; }
 .stage-card {
   display: grid;
@@ -130,6 +139,7 @@ button:focus-visible { outline: 2px solid #e3fffa; outline-offset: 3px; }
 }
 .stage-locked .stage-goal img { opacity: .65; }
 .stage-record { display: grid; justify-items: end; gap: 4px; }
+.stage-record-top { display: flex; align-items: center; gap: 4px; }
 .stage-record small { color: var(--label); font-size: .67rem; white-space: nowrap; }
 .stage-lock {
   position: relative;
@@ -174,6 +184,35 @@ button:focus-visible { outline: 2px solid #e3fffa; outline-offset: 3px; }
   text-shadow: 0 3px 12px #031b2dbf;
 }
 .back { justify-self: start; padding-inline: 10px; }
+.item-icon { display: block; flex: none; }
+.item-icon-silhouette { --silhouette: #3d5868; }
+.item-icon-silhouette [fill]:not([fill="none"]) { fill: var(--silhouette); }
+.item-icon-silhouette [stroke] { stroke: var(--silhouette); }
+.collection-header p {
+  margin: 0;
+  text-align: right;
+  color: var(--label);
+  font-size: .78rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.collection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.collection-item {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  min-height: 104px;
+  padding: 8px;
+  text-align: center;
+}
+.collection-item strong { font-size: .82rem; overflow-wrap: anywhere; }
+.collection-item[aria-pressed="true"] { border-color: #a1ecdb; background-color: #145363; }
+.collection-item-locked { background: #092635cf; border-color: #acf1f326; color: var(--label); }
+.collection-item small, .collection-detail small { color: var(--label); font-size: .72rem; }
+.collection-detail { margin-top: 12px; padding: 14px 16px; }
+.collection-detail h2 { margin: 0; font-size: 1rem; }
+.collection-detail p { margin: 6px 0; font-size: .86rem; }
 .hud { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 10px; }
 .goal { display: grid; align-content: center; gap: 8px; padding: 10px 12px; }
 .goal-label, .secondary-score { line-height: 1.15; }
@@ -292,6 +331,33 @@ footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 }
 .result-stats { display: flex; align-items: end; justify-content: center; flex-wrap: wrap; gap: 10px 24px; margin: 18px 0; }
 .result-stats dt { justify-content: center; min-height: 23px; margin-bottom: 2px; }
+.result-reward, .result-reward-owned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.result-reward {
+  padding: 6px 10px;
+  border: 1px solid #ffe8aa65;
+  border-radius: var(--control-radius);
+  background: radial-gradient(ellipse at center, #ffe8aa25, #04223155);
+  text-align: left;
+}
+.result-reward > span { display: grid; gap: 3px; }
+.result-reward small { color: var(--gold); font-size: .74rem; font-weight: 750; }
+.result-reward strong { font-size: .9rem; }
+.result-reward .item-icon {
+  filter: drop-shadow(0 0 7px #b8fff494);
+  animation: reward-pop 640ms ease-out both;
+}
+.result-reward-owned { color: var(--label); }
+@keyframes reward-pop {
+  0% { transform: scale(.55); opacity: .35; filter: drop-shadow(0 0 2px #b8fff44d); }
+  50% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 16px #b8fff4); }
+  100% { transform: scale(1); opacity: 1; }
+}
 .result-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .result-actions .button { padding-inline: 4px; }
 .result-actions .button-primary { grid-column: 1 / -1; }
@@ -304,5 +370,5 @@ footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .game *, .game *::before { transition-duration: 20ms !important; transition-timing-function: linear !important; }
-  .stars-animated .star-earned { animation: none; }
+  .stars-animated .star-earned, .result-reward .item-icon { animation: none; }
 }
