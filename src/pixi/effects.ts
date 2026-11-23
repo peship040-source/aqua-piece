@@ -42,6 +42,9 @@ export function createWater(app: Application) {
 const PARTICLE_COUNT = 72
 const SPARKLE_COUNT = 120
 const RIPPLE_DURATION = 300
+const CHAIN_DURATION = 380
+const SPECIAL_RING_COUNT = 24
+type SpecialRing = 'color' | 'burst' | 'creation'
 
 export function createEffects(layer: Container) {
   const ripples = Array.from({ length: 6 }, () => {
@@ -53,6 +56,32 @@ export function createEffects(layer: Container) {
   })
   let nextRipple = 0
   const flash = layer.addChild(new Graphics())
+  const specialRings = Array.from({ length: SPECIAL_RING_COUNT }, () => {
+    const shape = layer.addChild(new Graphics())
+    shape.visible = false
+    return { shape, kind: 'creation' as SpecialRing }
+  })
+  let activeRings = 0
+
+  function specialRing(at: number, kind: SpecialRing) {
+    if (activeRings === specialRings.length) return
+    const ring = specialRings[activeRings++]
+    ring.kind = kind
+    const { shape } = ring
+    const radius = CELL * (kind === 'color' ? 1.65 : kind === 'burst' ? 1.45 : 0.48)
+    const tint = kind === 'color' ? 0xc6a8ff : kind === 'burst' ? 0x83ffef : 0xffe69f
+    shape.clear()
+    if (kind === 'color') {
+      shape.circle(0, 0, radius).fill({ color: tint, alpha: 0.15 })
+        .circle(0, 0, radius * 0.68).fill({ color: tint, alpha: 0.22 })
+        .circle(0, 0, radius * 0.32).fill({ color: 0xffffff, alpha: 0.68 })
+    }
+    shape.circle(0, 0, radius).stroke({ color: tint, width: kind === 'creation' ? 7 : 11, alpha: 0.35 })
+      .circle(0, 0, radius).stroke({ color: 0xffffff, width: 2.5, alpha: 0.93 })
+    shape.position.set(xOf(at), yOf(at))
+    shape.visible = true
+  }
+
   const particles = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
     const shape = new Graphics()
     if (i % 3 === 0) shape.poly([0, -5, 1.2, -1.2, 5, 0, 1.2, 1.2, 0, 5, -1.2, 1.2, -5, 0, -1.2, -1.2]).fill(0xffffff)
@@ -77,20 +106,46 @@ export function createEffects(layer: Container) {
   }))
   points.anchor.set(0.5)
   points.visible = false
+  const chain = layer.addChild(new Text({
+    style: {
+      fontFamily: 'system-ui, sans-serif', fontWeight: '900', fontSize: 44,
+      fill: 0xbaffef, stroke: { color: 0x062737, width: 8, join: 'round' },
+      dropShadow: { color: 0x031925, alpha: 0.75, blur: 7, distance: 3 },
+    },
+    resolution: 2,
+  }))
+  chain.anchor.set(0.5)
+  chain.position.set(BOARD_SIZE / 2, CELL * 1.18)
+  chain.visible = false
+  let chainElapsed = 0
+  let chainScale = 1
   let active = 0
 
-  function setFrame(frame: Frame | undefined, reduced: boolean) {
+  function setFrame(frame: Frame | undefined, createdSpecials: number[], reduced: boolean) {
     flash.clear()
+    for (let i = 0; i < activeRings; i++) specialRings[i].shape.visible = false
+    activeRings = 0
     active = 0
     particles.forEach(({ shape }) => { shape.visible = false })
     const effect = frame?.effect
     points.visible = !!effect
     points.scale.set(1)
+    if (!frame) chain.visible = false
     if (!frame || !effect) return
     points.text = `+${effect.points.toLocaleString()}`
     points.x = Math.max(CELL, Math.min(BOARD_SIZE - CELL, xOf(effect.at)))
     if (frame.lifting) return
 
+    if (frame.chain >= 2) {
+      chain.text = `${frame.chain}連鎖！`
+      chain.style.fill = frame.chain >= 5 ? 0xffb57c : frame.chain >= 3 ? 0xffe29a : 0xbaffef
+      chainScale = 1 + Math.min(5, frame.chain - 2) * 0.09
+      chainElapsed = 0
+      chain.visible = true
+      updateChain(0, reduced)
+    }
+
+    for (const at of createdSpecials) specialRing(at, 'creation')
     for (const { at, special } of effect.activations) {
       const x = xOf(at)
       const y = yOf(at)
@@ -103,10 +158,7 @@ export function createEffects(layer: Container) {
         beam(7, 0xbefff4, 0.67)
         beam(2, 0xffffff, 0.94)
       } else {
-        const radius = special === 'burst' ? CELL * 1.35 : CELL * 2.25
-        flash.circle(x, y, radius).fill({ color: 0xc4fff2, alpha: 0.16 })
-          .circle(x, y, radius).stroke({ color: 0x9ffff2, width: 12, alpha: 0.35 })
-          .circle(x, y, radius).stroke({ color: 0xffffff, width: 3, alpha: 0.92 })
+        specialRing(at, special)
       }
     }
     if (reduced) return
@@ -146,6 +198,12 @@ export function createEffects(layer: Container) {
     const effect = frame.effect
     if (!effect) return
     flash.alpha = (1 - progress) ** 2 * (reduced ? 0.55 : 1)
+    for (let i = 0; i < activeRings; i++) {
+      const { shape, kind } = specialRings[i]
+      const from = kind === 'creation' ? 0.72 : kind === 'color' ? 0.58 : 0.25
+      shape.scale.set(reduced ? 1 : from + (1.15 - from) * (1 - (1 - progress) ** 2))
+      shape.alpha = (1 - progress) ** (kind === 'color' ? 2 : 1.2) * (reduced ? 0.55 : 1)
+    }
     points.y = yOf(effect.at) - (reduced ? 0 : frame.lifting ? 12 + 16 * progress : 12 * progress)
     points.alpha = frame.lifting ? 1 - progress : Math.min(1, 0.65 + progress * 2)
     const bounce = Math.min(1, progress / 0.65)
@@ -159,6 +217,16 @@ export function createEffects(layer: Container) {
       shape.alpha = (1 - progress) ** 1.5
       shape.scale.set(1 - progress * 0.55)
     }
+  }
+
+  function updateChain(deltaMS: number, reduced: boolean) {
+    if (!chain.visible) return
+    chainElapsed += deltaMS
+    const progress = Math.min(1, chainElapsed / CHAIN_DURATION)
+    const bounce = Math.min(1, progress * 3)
+    chain.scale.set(chainScale * (reduced ? 1 : 0.82 + 0.18 * bounce + Math.sin(Math.PI * bounce) * 0.25))
+    chain.alpha = reduced ? 1 : Math.min(1, 0.6 + progress * 8, (1 - progress) * 5)
+    chain.visible = progress < 1
   }
 
   function updateSparkles(deltaMS: number, reduced: boolean) {
@@ -196,5 +264,5 @@ export function createEffects(layer: Container) {
     }
   }
 
-  return { setFrame, update, ripple, updateRipples, updateSparkles }
+  return { setFrame, update, ripple, updateRipples, updateSparkles, updateChain }
 }

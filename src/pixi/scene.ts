@@ -81,6 +81,7 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
 
   function place(next: PlacedTile, dropping: boolean) {
     const isNew = tile === undefined
+    const createdSpecial = !isNew && tile !== next.tile && !!next.tile.special
     if (tile !== next.tile) {
       tile = next.tile
       const texture = textures[tile.color]
@@ -98,6 +99,7 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
     targetY = (next.row + 0.5) * CELL
     duration = next.duration ?? 0
     settling = dropping && (isNew || startY !== targetY)
+    return createdSpecial
   }
 
   function update(elapsed: number, motion: Frame['motion'], reduced: boolean) {
@@ -154,6 +156,7 @@ export function createScene(
     water.update(visualTime)
     effects.updateRipples(ticker.deltaMS, reduced)
     effects.updateSparkles(ticker.deltaMS, reduced)
+    effects.updateChain(ticker.deltaMS, reduced)
 
     if (frame && !finished) elapsed += ticker.deltaMS
     const duration = frame?.duration ?? 0
@@ -184,6 +187,8 @@ export function createScene(
       elapsed = 0
       finished = false
       clearing = new Set(frame?.lifting ? [] : frame?.effect?.cells)
+      const createdSpecials: number[] = []
+      const isClear = !!frame?.effect && !frame.lifting
       const ids = new Set(placed.map(gem => gem.id))
       for (const [id, tile] of tileViews) {
         if (ids.has(id)) continue
@@ -198,9 +203,9 @@ export function createScene(
           tileLayer.addChild(tile.node)
           tileViews.set(gem.id, tile)
         }
-        tile.place(gem, !!frame?.lifting)
+        if (tile.place(gem, !!frame?.lifting) && isClear) createdSpecials.push(gem.at)
       }
-      effects.setFrame(frame, preference.matches)
+      effects.setFrame(frame, createdSpecials, preference.matches)
     },
     resize(size: number) {
       app.renderer.resize(size, size, Math.min(window.devicePixelRatio || 1, 2))

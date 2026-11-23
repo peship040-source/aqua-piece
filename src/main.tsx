@@ -18,6 +18,14 @@ const newSeed = () => crypto.getRandomValues(new Uint32Array(1))[0]
 const start = (def: StageDef, seed = newSeed()): CurrentGame => ({ seed, game: stageFor(def, seededRng(seed)) })
 const formatNumber = (value: number) => value.toLocaleString('ja-JP')
 const motionPreference = '(prefers-reduced-motion: reduce)'
+const formatDepth = (stage: number) => stage === 1 ? '0 m' : `−${(stage - 1) * 10} m`
+
+function depthTier(stage: number) {
+  if (stage <= 3) return 'shallow'
+  if (stage <= 6) return 'mid'
+  if (stage <= 8) return 'deep'
+  return 'abyss'
+}
 
 function collectionColor(def: StageDef) {
   return def.goalType === 'collect' ? def.targetColor : undefined
@@ -44,13 +52,61 @@ function SeaAmbience() {
   )
 }
 
+function Splash({ dismiss }: { dismiss: () => void }) {
+  const layer = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const element = layer.current
+    const preference = window.matchMedia(motionPreference)
+    const fallback = window.setTimeout(dismiss, 1000)
+
+    function finish(event: Event) {
+      if (event.target === element) dismiss()
+    }
+
+    function skipIfReduced() {
+      if (preference.matches) dismiss()
+    }
+
+    element?.addEventListener('animationend', finish)
+    preference.addEventListener('change', skipIfReduced)
+    skipIfReduced()
+    return () => {
+      window.clearTimeout(fallback)
+      element?.removeEventListener('animationend', finish)
+      preference.removeEventListener('change', skipIfReduced)
+    }
+  }, [dismiss])
+
+  return (
+    <div className="splash" ref={layer}>
+      <button type="button" className="splash-skip" aria-label="Aqua Piece スプラッシュをスキップ" onClick={dismiss}>
+        <span className="splash-mark" aria-hidden="true">
+          <span className="title-logo"><span>Aqua Piece</span></span>
+          <span className="splash-bubble" />
+          <span className="splash-bubble" />
+          <span className="splash-bubble" />
+        </span>
+      </button>
+    </div>
+  )
+}
+
+const starEntranceStart = 150
+const starEntranceInterval = 250
+const starEntranceDuration = 340
+
 function Stars({ count, animate = false }: { count: number; animate?: boolean }) {
   return (
     <span className={`stars${animate ? ' stars-animated' : ''}`} role="img" aria-label={`星3つのうち${count}つ`}>
       {[0, 1, 2].map(index => (
         <span
           key={index} className={index < count ? 'star-earned' : undefined}
-          style={animate ? { animationDelay: `${150 + index * 260}ms` } : undefined} aria-hidden="true"
+          style={animate && index < count ? {
+            animationDelay: `${starEntranceStart + index * starEntranceInterval}ms`,
+            animationDuration: `${starEntranceDuration}ms`,
+          } : undefined}
+          aria-hidden="true"
         >
           {index < count ? '★' : '☆'}
         </span>
@@ -93,7 +149,7 @@ function StageSelect({ save, resume, choose, openCollection }: {
       </header>
       <section className="dive-map" aria-labelledby="dive-map-title" {...{ tabIndex: 0 }}>
         <div className="dive-water">
-          <p className="dive-depth">浅瀬 <span>0 m</span></p>
+          <p className="dive-depth">浅瀬 <span>{formatDepth(1)}</span></p>
           <div className="dive-stops">
             <svg
               className="dive-route" viewBox={`0 0 100 ${STAGES.length * 100}`} width={100} height={STAGES.length * 100}
@@ -133,7 +189,7 @@ function StageSelect({ save, resume, choose, openCollection }: {
               )
             })}
           </div>
-          <p className="dive-depth">深海 <span>−{(STAGES.length - 1) * 10} m</span></p>
+          <p className="dive-depth">深海 <span>{formatDepth(STAGES.length)}</span></p>
         </div>
       </section>
     </main>
@@ -187,7 +243,7 @@ function Collection({ collection, back }: { collection: Progress['collection']; 
       </div>
       <div id="collection-detail" aria-live="polite" ref={detail}>
         {selected && (
-          <div className="collection-detail">
+          <div className="collection-detail" key={selected.id}>
             <h2>{selectedOwned ? selected.name : '？？？'}</h2>
             <p>{selectedOwned ? selected.flavor : `ステージ${selected.stageId}をクリアしよう`}</p>
             {selectedOwned && <small>ステージ{selected.stageId}のごほうび</small>}
@@ -198,58 +254,110 @@ function Collection({ collection, back }: { collection: Progress['collection']; 
   )
 }
 
-function usePulse(active: boolean, interval: number) {
-  const [pulse, setPulse] = useState(false)
+function useTweenedScore(score: number) {
+  const [displayed, setDisplayed] = useState(score)
+  const current = useRef(score)
+
   useEffect(() => {
-    if (!active) return
     const preference = window.matchMedia(motionPreference)
-    let timer: number
+    let request = 0
+
     function sync() {
-      window.clearInterval(timer)
-      if (preference.matches) setPulse(false)
-      else timer = window.setInterval(() => setPulse(value => !value), interval)
+      cancelAnimationFrame(request)
+      if (preference.matches) {
+        current.current = score
+        setDisplayed(score)
+        return
+      }
+      const from = current.current ?? score
+      if (from === score) return
+      const start = performance.now()
+      function tick(now: number) {
+        const progress = Math.min(1, (now - start) / 320)
+        const value = Math.round(from + (score - from) * (1 - (1 - progress) ** 3))
+        current.current = value
+        setDisplayed(value)
+        if (progress < 1) request = requestAnimationFrame(tick)
+      }
+      request = requestAnimationFrame(tick)
     }
+
     sync()
     preference.addEventListener('change', sync)
     return () => {
       preference.removeEventListener('change', sync)
-      window.clearInterval(timer)
+      cancelAnimationFrame(request)
     }
-  }, [active, interval])
-  return active && pulse
+  }, [score])
+  return displayed
+}
+
+const hudIconPaths = {
+  score: 'm10 2 2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.6-.8L10 2Z',
+  moves: 'M5 3h10M5 17h10M6 3v3c0 2 4 3 4 4s-4 2-4 4v3m8-14v3c0 2-4 3-4 4s4 2 4 4v3',
+  goal: 'M5 17V3m0 1c4-4 6 4 11 0v8c-5 4-7-4-11 0',
+}
+
+function HudIcon({ kind }: { kind: keyof typeof hudIconPaths }) {
+  return (
+    <svg className={`hud-icon hud-icon-${kind}`} viewBox="0 0 20 20" width={15} height={15} aria-hidden="true">
+      <path d={hudIconPaths[kind]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 function Moves({ count }: { count: number }) {
-  const low = count <= 5
-  const pulse = usePulse(low, 650)
   return (
-    <dl className={`moves card${low ? ' moves-low' : ''}${pulse ? ' pulse' : ''}`}>
-      <dt>残り手数</dt>
+    <dl className={`moves card${count <= 5 ? ' moves-low' : ''}`}>
+      <dt><HudIcon kind="moves" />残り手数</dt>
       <dd>{count}</dd>
     </dl>
   )
 }
 
-function Hud({ def, score, count, moves }: { def: StageDef; score: number; count: number; moves: number }) {
+function Hud({ def, score, settledScore, count, moves }: {
+  def: StageDef; score: number; settledScore: number; count: number; moves: number
+}) {
   const color = collectionColor(def)
   const value = color === undefined ? score : count
   const progress = Math.min(value, def.target)
+  const displayedScore = useTweenedScore(settledScore)
+  const stars = value >= def.target ? 1 + Number(score >= def.star2) + Number(score >= def.star3) : 0
+  const previousStars = useRef(stars)
+  const [glow, setGlow] = useState(0)
+
+  useEffect(() => {
+    const previous = previousStars.current ?? stars
+    previousStars.current = stars
+    if (stars > previous) setGlow(value => value + 1)
+    else if (stars < previous) setGlow(0)
+  }, [stars])
+
   return (
     <section className="hud" aria-label="ステージの進み具合">
       <div className="goal card">
         <div className="goal-label">
           <span id="goal-label">
-            {color === undefined ? 'スコア' : <><img src={gems[color].asset} alt="" />{gems[color].label}</>}
+            {color === undefined ? <><HudIcon kind="score" />スコア</> : <><img src={gems[color].asset} alt="" />{gems[color].label}</>}
           </span>
-          <strong>{formatNumber(value)} <small>/ {formatNumber(def.target)}</small></strong>
+          <strong>
+            {formatNumber(color === undefined ? displayedScore : count)}{' '}
+            <small className="goal-target">/ <HudIcon kind="goal" />{formatNumber(def.target)}</small>
+          </strong>
         </div>
         <div
           className="progress" role="progressbar" aria-labelledby="goal-label"
           aria-valuenow={progress} aria-valuemax={def.target}
         >
-          <span style={{ width: `${progress / def.target * 100}%` }} />
+          <span className="progress-fill" style={{ width: `${progress / def.target * 100}%` }} />
+          {glow > 0 && <span key={glow} className="progress-glow" aria-hidden="true" />}
         </div>
-        {color !== undefined && <small className="secondary-score">スコア <strong>{formatNumber(score)}</strong></small>}
+        <div className="hud-details">
+          {color !== undefined && (
+            <small className="secondary-score"><HudIcon kind="score" />スコア <strong>{formatNumber(displayedScore)}</strong></small>
+          )}
+          <small className="hud-depth">深度 {formatDepth(def.id)}</small>
+        </div>
       </div>
       <Moves count={moves} />
     </section>
@@ -261,6 +369,44 @@ const lossTitle = '手数を使い切りました'
 
 type Reward = { item: ItemDef; isNew: boolean }
 
+const resultBubbles = Array.from({ length: 18 }, (_, index) => ({
+  left: `${5 + (index * 17) % 90}%`,
+  width: 4 + (index * 5) % 8,
+  animationDelay: `${100 + index * 16}ms`,
+  '--bubble-end': `${64 + (index * 13) % 28}%`,
+  '--bubble-drift': `${(index % 2 ? -1 : 1) * (8 + (index * 7) % 18)}px`,
+}))
+
+function ResultBubbles() {
+  const [visible, setVisible] = useState(() => !window.matchMedia(motionPreference).matches)
+  const layer = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const lastBubble = layer.current?.lastElementChild
+    if (!visible || !lastBubble) return
+    const preference = window.matchMedia(motionPreference)
+    const finish = () => setVisible(false)
+    function stopIfReduced() {
+      if (preference.matches) finish()
+    }
+    lastBubble.addEventListener('animationend', finish)
+    preference.addEventListener('change', stopIfReduced)
+    stopIfReduced()
+    return () => {
+      lastBubble.removeEventListener('animationend', finish)
+      preference.removeEventListener('change', stopIfReduced)
+    }
+  }, [visible])
+
+  return visible && (
+    <div className="result-bubbles" ref={layer} aria-hidden="true">
+      {resultBubbles.map((style, index) => (
+        <span key={index} className="result-bubble" style={style} />
+      ))}
+    </div>
+  )
+}
+
 function Result({ def, game, won, reward, restart, select, next }: {
   def: StageDef; game: Game; won: boolean; reward?: Reward
   restart: () => void; select: () => void; next?: () => void
@@ -268,6 +414,8 @@ function Result({ def, game, won, reward, restart, select, next }: {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => dialog.current?.showModal(), [])
   const color = collectionColor(def)
+  const stars = won ? earnedStars(def, game) : 0
+  const rewardDelay = starEntranceStart + Math.max(0, stars - 1) * starEntranceInterval + starEntranceDuration + 70
   return (
     <dialog
       className={`result card${won ? ' result-won' : ' result-lost'}`} ref={dialog} aria-labelledby="result-title"
@@ -275,7 +423,7 @@ function Result({ def, game, won, reward, restart, select, next }: {
     >
       <p className="stage">ステージ {def.id}</p>
       <h2 id="result-title">{won ? clearTitle : lossTitle}</h2>
-      {won && <Stars count={earnedStars(def, game)} animate />}
+      {won && <><Stars count={stars} animate /><ResultBubbles /></>}
       <dl className="result-stats">
         <div>
           <dt>スコア</dt>
@@ -293,7 +441,7 @@ function Result({ def, game, won, reward, restart, select, next }: {
       </dl>
       {reward && (
         reward.isNew ? (
-          <div className="result-reward">
+          <div className="result-reward" style={{ animationDelay: `${rewardDelay}ms` }}>
             <ItemIcon itemId={reward.item.id} owned size={58} />
             <span>
               <small>あたらしいアイテム！</small>
@@ -317,7 +465,7 @@ function Result({ def, game, won, reward, restart, select, next }: {
 }
 
 type PlayFrame = Frame & { collected?: number }
-type Playback = { frames: PlayFrame[]; index: number; message: string }
+type Playback = { frames: PlayFrame[]; index: number; startingScore: number; message: string }
 
 function Play({ initial, progress, onGameChange, select, choose }: {
   initial: CurrentGame
@@ -394,7 +542,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
       resolving.current = true
       setSelected(null)
       setPlayback({
-        frames, index: 0,
+        frames, index: 0, startingScore: game.score,
         message: turn.game === game ? 'そろう宝石がありませんでした。' : turn.reshuffled ? '宝石を並べ直しました。' : '',
       })
       if (turn.game !== game) {
@@ -408,24 +556,21 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   }
 
   const feedback = frame
-    ? shownChain > 1 ? `${shownChain} Chain!` : '宝石を入れ替えています…'
-    : message || (chain > 1 ? `${chain} Chain!` : 'となり合う宝石をタップして入れ替えよう。')
+    ? shownChain > 1 ? `${shownChain}連鎖！` : '宝石を入れ替えています…'
+    : message || (chain > 1 ? `${chain}連鎖！` : 'となり合う宝石をタップして入れ替えよう。')
 
   return (
-    <main className="game play-screen">
+    <main className={`game play-screen depth-${depthTier(def.id)}`}>
       <header className="play-header">
         <button type="button" className="button back" onClick={select}>もどる</button>
         <h1>ステージ {def.id}</h1>
       </header>
-      <Hud def={def} score={score} count={count} moves={game.moves} />
+      <Hud def={def} score={score} settledScore={playback?.startingScore ?? game.score} count={count} moves={game.moves} />
       <div className="board-frame card">
         <Board
           tiles={tiles} frame={frame} selected={selected} locked={!!playback || result !== 'playing'}
           onTap={tap} onFrameDone={advance}
         />
-        <span className={`chain-banner${frame && shownChain > 1 ? ' visible' : ''}`} aria-hidden="true">
-          {shownChain} Chain!
-        </span>
       </div>
       <p className="feedback" role="status">{result !== 'playing' && !playback ? '' : feedback}</p>
       <footer>
@@ -447,6 +592,7 @@ type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; init
 function App() {
   const [save, setSave] = useState(loadSave)
   const [screen, setScreen] = useState<Screen>({ name: 'select' })
+  const [showSplash, setShowSplash] = useState(() => !window.matchMedia(motionPreference).matches)
   useEffect(() => window.scrollTo(0, 0), [screen])
 
   function persist(next: Save) {
@@ -483,20 +629,27 @@ function App() {
     if (save.current) setScreen({ name: 'play', initial: save.current })
   }
 
+  function dismissSplash() {
+    setShowSplash(false)
+  }
+
   return (
     <>
       <div className="sea" aria-hidden="true" />
       <SeaAmbience />
-      {screen.name === 'select' ? (
-        <StageSelect save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
-      ) : screen.name === 'collection' ? (
-        <Collection collection={save.progress.collection} back={() => setScreen({ name: 'select' })} />
-      ) : (
-        <Play
-          key={screen.initial.game.stageId} initial={screen.initial} progress={save.progress}
-          onGameChange={updateGame} select={() => setScreen({ name: 'select' })} choose={choose}
-        />
-      )}
+      <div {...{ inert: showSplash }}>
+        {screen.name === 'select' ? (
+          <StageSelect key="select" save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
+        ) : screen.name === 'collection' ? (
+          <Collection key="collection" collection={save.progress.collection} back={() => setScreen({ name: 'select' })} />
+        ) : (
+          <Play
+            key={`play-${screen.initial.game.stageId}`} initial={screen.initial} progress={save.progress}
+            onGameChange={updateGame} select={() => setScreen({ name: 'select' })} choose={choose}
+          />
+        )}
+      </div>
+      {showSplash && <Splash dismiss={dismissSplash} />}
     </>
   )
 }

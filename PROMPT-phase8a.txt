@@ -1,0 +1,18 @@
+AQUA PIECE Phase 8a (design only): play-screen juice. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, src/pixi/scene.ts, src/pixi/effects.ts, src/game/engine.ts (read briefly to see step/event shapes). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data changes — presentation only. Respect prefers-reduced-motion for DOM animations.
+
+1) Chain indicator: during step playback, when chain >= 2, show a prominent popup (e.g. 「2連鎖！」) that escalates with chain level (bigger scale / warmer color for higher chains). Use the Pixi popup layer if popups live there (Phase 7a added a popup bounce), or a DOM overlay positioned over the board — pick whichever matches the existing popup implementation.
+
+2) Special-tile effects (Pixi, Graphics-based, short-lived, pooled/capped):
+- LINE activation: a bright beam flash along the cleared row/column.
+- COLOR activation: a radial flash from the activated tile.
+- BURST activation: an expanding ring shockwave.
+- Special creation: a quick ring pulse on the newly created special tile.
+
+3) HUD animation (React/CSS):
+- Score number counts up/down smoothly to its new value after each move resolves (small rAF tween hook; cancel cleanly on unmount/new value).
+- Goal progress bar animates its width (CSS transition) and gives a soft glow pulse when a star threshold is crossed.
+- Moves counter: when moves left <= 5, it pulses gently (CSS class) to signal urgency.
+
+4) Board frame: give the board container a glass-tank frame (border, inner highlight, soft shadow) consistent with the Phase 7c aquarium look.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

@@ -1,0 +1,13 @@
+AQUA PIECE Phase 8b (design only): screen transitions and result-modal polish. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css (read briefly). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data changes — presentation only. Respect prefers-reduced-motion everywhere (entrance animations become instant/none).
+
+1) Screen transitions: when switching between the stage select, play, and collection screens, the incoming screen fades/slides in gently (CSS keyframe entrance on the screen container, keyed by screen so it replays on each switch). Keep it quick (~250ms) and never block input longer than the animation.
+
+2) Result modal (win): 
+- Earned stars light up one by one in sequence (staggered pop-in with a small glow as each lands, ~250ms apart).
+- A gentle bubble confetti: a burst of small bubbles rising from the modal on a win (DOM elements, capped ~18, deterministic positions via index, removed after the animation).
+- The reward item reveal (when a new collection item was earned) pops in with a soft scale/glow after the stars.
+- On a loss, keep the modal calm: no confetti, no star sequence — just the plain entrance.
+
+3) Micro-interactions: primary buttons get a subtle press feedback (scale 0.97 on :active with a short transition); panels/modals fade-up on entrance.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

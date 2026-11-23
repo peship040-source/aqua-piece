@@ -1,0 +1,11 @@
+AQUA PIECE Phase 8c (design only): per-stage depth theming, HUD icons, a short logo splash, and an SVG favicon. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, index.html, src/game/stages.ts (read briefly). All 53 existing tests must still pass. No sound, no new image files (inline SVG and CSS only), no gameplay/save/stage-data changes. Respect prefers-reduced-motion.
+
+1) Depth theming on the play screen: apply a depth tier class by stage number — stages 1-3 shallow, 4-6 mid, 7-8 deep, 9-10 abyss. Each tier shifts the play screen's ambience via CSS variables: overlay tint gets progressively darker/bluer, and the deepest tier adds a subtle bioluminescent accent (soft cyan glow accents on the frame/HUD). The board and gems stay fully readable in every tier. Also show a small depth label in the play HUD (e.g. 深度 -30m, derived from the stage number).
+
+2) HUD icons: add small inline SVG icons next to the score, moves, and goal indicators (e.g. a star/shell/flag shape — simple paths), keeping the existing text labels and numbers.
+
+3) Splash: on first load only, show a brief splash (~900ms) with the Aqua Piece logo and a few rising bubbles, then fade out into the stage select screen. Tapping skips it immediately. Under prefers-reduced-motion, skip the splash animation (show the app directly or fade instantly). It must never trap the user: guarantee removal with a timer fallback.
+
+4) Favicon: add an inline SVG data-URI favicon to index.html (a simple aqua gem/droplet mark).
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.
