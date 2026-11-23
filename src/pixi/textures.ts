@@ -7,12 +7,12 @@ import sun from '../assets/gems/gem-sun.webp'
 import emerald from '../assets/gems/gem-emerald.webp'
 
 export const gems = [
-  { name: 'Coral jewel', label: 'コーラル', asset: coral, base: 0xed5e6b, light: 0xffb5ac },
-  { name: 'Ocean jewel', label: 'オーシャン', asset: ocean, base: 0x218ccb, light: 0xc0eaff },
-  { name: 'Amber jewel', label: 'アンバー', asset: amber, base: 0xd98221, light: 0xffefae },
-  { name: 'Violet jewel', label: 'バイオレット', asset: violet, base: 0x9350dc, light: 0xead5ff },
-  { name: 'Sun jewel', label: 'サン', asset: sun, base: 0xf5cf39, light: 0xffe795 },
-  { name: 'Emerald jewel', label: 'エメラルド', asset: emerald, base: 0x19a661, light: 0xe7ffc5 },
+  { name: 'Coral jewel', label: 'コーラル', asset: coral, base: 0xd9384c, light: 0xff8b92 },
+  { name: 'Ocean jewel', label: 'オーシャン', asset: ocean, base: 0x0875bf, light: 0x65c5fa },
+  { name: 'Amber jewel', label: 'アンバー', asset: amber, base: 0xce6810, light: 0xffab58 },
+  { name: 'Violet jewel', label: 'バイオレット', asset: violet, base: 0x8036cc, light: 0xc794fa },
+  { name: 'Sun jewel', label: 'サン', asset: sun, base: 0xe1ad13, light: 0xffda63 },
+  { name: 'Emerald jewel', label: 'エメラルド', asset: emerald, base: 0x078b50, light: 0x67d99b },
 ]
 
 export const specials = {
@@ -28,31 +28,64 @@ export type GemTextures = readonly Texture[]
 
 export function createGemTextures(renderer: Application['renderer']): GemTextures {
   const frame = new Rectangle(0, 0, CELL - 8, CELL - 8)
-  const shade = 0x142345
+  const outline = 0x0b1e33
+  const shapes = [
+    {
+      draw: (art: Graphics) => art.circle(28, 28, 24),
+      facet: { halfWidth: 16, y: 17, rise: 12 },
+      shade: { halfWidth: 16, y: 43, drop: 10 },
+    },
+    {
+      draw: (art: Graphics) => art.moveTo(28, 3)
+        .bezierCurveTo(24, 11, 7, 22, 7, 34)
+        .bezierCurveTo(7, 45, 16, 52, 28, 52)
+        .bezierCurveTo(40, 52, 49, 45, 49, 34)
+        .bezierCurveTo(49, 22, 32, 11, 28, 3)
+        .closePath(),
+      facet: { halfWidth: 10, y: 23, rise: 12 },
+      shade: { halfWidth: 15, y: 43, drop: 10 },
+    },
+    {
+      draw: (art: Graphics) => art.poly([14, 6, 42, 6, 52, 28, 42, 50, 14, 50, 4, 28]),
+      facet: { halfWidth: 15, y: 16, rise: 9 },
+      shade: { halfWidth: 14, y: 43, drop: 8 },
+    },
+    {
+      draw: (art: Graphics) => art.ellipse(28, 28, 17, 24),
+      facet: { halfWidth: 11, y: 18, rise: 13 },
+      shade: { halfWidth: 11, y: 43, drop: 10 },
+    },
+    {
+      draw: (art: Graphics) => art.poly([28, 3, 53, 28, 28, 53, 3, 28]),
+      facet: { halfWidth: 10, y: 20, rise: 13 },
+      shade: { halfWidth: 9, y: 40, drop: 11 },
+    },
+    {
+      draw: (art: Graphics) => art.poly([14, 4, 42, 4, 52, 14, 52, 42, 42, 52, 14, 52, 4, 42, 4, 14]),
+      facet: { halfWidth: 17, y: 15, rise: 11 },
+      shade: { halfWidth: 16, y: 45, drop: 8 },
+    },
+  ]
 
-  return gems.map(({ base, light }) => {
+  return gems.map(({ base, light }, index) => {
+    const { draw, facet, shade } = shapes[index]
     const art = new Graphics()
-      .moveTo(14, 1).lineTo(42, 1).quadraticCurveTo(47, 1, 50, 5)
-      .lineTo(53, 9).quadraticCurveTo(55, 12, 55, 16)
-      .lineTo(55, 40).quadraticCurveTo(55, 44, 52, 48)
-      .lineTo(49, 51).quadraticCurveTo(46, 55, 41, 55)
-      .lineTo(15, 55).quadraticCurveTo(10, 55, 6, 51)
-      .lineTo(3, 47).quadraticCurveTo(1, 44, 1, 40)
-      .lineTo(1, 16).quadraticCurveTo(1, 12, 4, 8)
-      .lineTo(7, 4).quadraticCurveTo(10, 1, 14, 1)
-      .closePath().fill(base)
 
-      // Four bevel planes meet the central table facet.
-      .poly([13, 4, 43, 4, 51, 12, 39, 12, 15, 14, 4, 14]).fill({ color: light, alpha: 0.58 })
-      .poly([4, 14, 15, 14, 14, 42, 13, 52, 4, 43]).fill({ color: light, alpha: 0.25 })
-      .poly([39, 12, 51, 12, 52, 42, 43, 52, 42, 40]).fill({ color: shade, alpha: 0.23 })
-      .poly([14, 42, 42, 40, 43, 52, 13, 52]).fill({ color: shade, alpha: 0.42 })
-      .poly([15, 14, 39, 12, 42, 40, 14, 42]).fill({ color: light, alpha: 0.12 })
+    draw(art).fill(base).stroke({ color: outline, alpha: 0.9, width: 3, join: 'round' })
 
-      .poly([10, 11, 15, 6, 28, 6, 18, 9]).fill({ color: 0xffffff, alpha: 0.83 })
-      .moveTo(52, 22).lineTo(52, 40).quadraticCurveTo(52, 44, 48, 48)
-      .quadraticCurveTo(45, 52, 40, 52).lineTo(25, 52)
-      .stroke({ color: light, width: 1.5, alpha: 0.52, cap: 'round' })
+    // Keep the accents near the edges so special-tile glyphs have a clear center.
+    art.moveTo(28 - facet.halfWidth, facet.y)
+      .quadraticCurveTo(28, facet.y - facet.rise, 28 + facet.halfWidth, facet.y)
+      .quadraticCurveTo(28, facet.y - 2, 28 - facet.halfWidth, facet.y)
+      .closePath()
+      .fill({ color: light, alpha: 0.26 })
+      .moveTo(28 - shade.halfWidth, shade.y)
+      .quadraticCurveTo(28, shade.y + shade.drop, 28 + shade.halfWidth, shade.y)
+      .quadraticCurveTo(28, shade.y + 3, 28 - shade.halfWidth, shade.y)
+      .closePath()
+      .fill({ color: outline, alpha: 0.3 })
+      .ellipse(28 - facet.halfWidth * 0.48, facet.y - 2, 3, 1.4)
+      .fill({ color: 0xffffff, alpha: 0.55 })
 
     try {
       return renderer.generateTexture({ target: art, frame, resolution: 2, antialias: true })
