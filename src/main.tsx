@@ -593,7 +593,7 @@ function Result({ def, game, won, reward, restart, select, next }: {
   restart: () => void; select: () => void; next?: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => dialog.current?.showModal(), [])
+  useEffect(() => { dialog.current?.showModal() }, [])
   const color = collectionColor(def)
   const stars = won ? earnedStars(def, game) : 0
   const rewardDelay = starEntranceStart + Math.max(0, stars - 1) * starEntranceInterval + starEntranceDuration + 70
@@ -801,7 +801,7 @@ function App() {
   const [newItems, setNewItems] = useState<string[]>([])
   const [screen, setScreen] = useState<Screen>({ name: 'select' })
   const [showSplash, setShowSplash] = useState(() => !window.matchMedia(motionPreference).matches)
-  useEffect(() => window.scrollTo(0, 0), [screen])
+  useEffect(() => { window.scrollTo(0, 0) }, [screen])
 
   function persist(next: Save) {
     storeSave(next)
