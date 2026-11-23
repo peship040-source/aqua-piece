@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.1 — 2026-11-23
+
+- Board pieces are the original glossy sprite art again (owner preference over the v1.6 vector redraw): plump shapes with bubbles inside, a distinct silhouette per color, loaded as textures with a simple generated fallback if a sprite ever fails to load
+
 ## v1.7.0 — 2026-11-23
 
 - エンドレスモードを追加（プレイヤーからのリクエスト）：目標も手数制限もないフリープレイ。スコアと手数を数え続け、ベストスコアだけが記録に残る（セーブv4、過去セーブは自動移行）。進行中のステージはそのまま「つづきから」で再開できる

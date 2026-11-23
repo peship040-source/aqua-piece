@@ -30,7 +30,7 @@ function describeBoard(tiles: PlacedTile[], selected: number | null, busy: boole
 export function Board(props: Props) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const canvas = useRef<HTMLCanvasElement>(null)
-  const scene = useRef<ReturnType<typeof createScene>>(null)
+  const scene = useRef<Awaited<ReturnType<typeof createScene>>>(null)
   const latest = useRef(props)
   const tiles = props.frame?.tiles ?? props.tiles
 
@@ -43,7 +43,8 @@ export function Board(props: Props) {
     const view = canvas.current!
     const host = view.parentElement!
     const app = new Application()
-    let disposed = false
+    const controller = new AbortController()
+    const { signal } = controller
     let initialized = false
     let observer: ResizeObserver | undefined
     const resize = () => {
@@ -59,16 +60,17 @@ export function Board(props: Props) {
           width: 1, height: 1,
         })
         initialized = true
-        if (disposed) {
+        if (signal.aborted) {
           app.destroy({ removeView: false }, { children: true })
           return
         }
         // Pixi disables gestures by default. Tap-to-swap can coexist with page scrolling.
         view.style.touchAction = 'manipulation'
 
-        const next = createScene(app,
+        const next = await createScene(app,
           at => latest.current?.onTap(at),
           frame => latest.current?.onFrameDone(frame),
+          signal,
         )
         scene.current = next
         const state = latest.current!
@@ -80,7 +82,7 @@ export function Board(props: Props) {
         window.addEventListener('resize', resize)
         setStatus('ready')
       } catch (error) {
-        if (!disposed) {
+        if (!signal.aborted) {
           console.error('Unable to initialize the Aqua Piece board', error)
           setStatus('unavailable')
         }
@@ -89,7 +91,7 @@ export function Board(props: Props) {
 
     void mount()
     return () => {
-      disposed = true
+      controller.abort()
       observer?.disconnect()
       window.removeEventListener('resize', resize)
       if (scene.current) {

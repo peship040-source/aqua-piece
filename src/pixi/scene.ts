@@ -2,7 +2,7 @@ import { CanvasSource, Container, Graphics, Rectangle, Sprite, Text, Texture, ty
 import type { Frame, PlacedTile } from '../animation'
 import type { Tile } from '../game/engine'
 import { BOARD_SIZE, createEffects, createGemPolish, createWater, xOf } from './effects'
-import { CELL, createGemTextures, specials, type GemTextures } from './textures'
+import { CELL, destroyGemFallbackTextures, loadGemTextures, specials, type GemTextures } from './textures'
 import { clampProgress, interpolate, slideProgress } from './tween'
 
 const REVERT_WIGGLE_MS = 150
@@ -147,14 +147,16 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
   return { node, ring, place, update, decorate, get at() { return at } }
 }
 
-export function createScene(
+export async function createScene(
   app: Application,
   onTap: (at: number) => void,
   onFrameDone: (frame: Frame) => void,
+  signal: AbortSignal,
 ) {
+  const textures = await loadGemTextures(app.renderer, signal)
+  signal.throwIfAborted()
   const water = createWater(app)
   const shadow = createShadowTexture()
-  const textures = createGemTextures(app.renderer)
   const tileLayer = app.stage.addChild(new Container())
   const effectLayer = app.stage.addChild(new Container())
   effectLayer.eventMode = 'none'
@@ -263,7 +265,7 @@ export function createScene(
       app.destroy({ removeView: false }, { children: true })
       water.destroy()
       shadow.destroy(true)
-      for (const texture of textures) texture.destroy(true)
+      destroyGemFallbackTextures(textures)
     },
   }
 }

@@ -1,4 +1,4 @@
-import { Graphics, Rectangle, type Application, type Texture } from 'pixi.js'
+import { Assets, Graphics, Rectangle, type Application, type Texture } from 'pixi.js'
 import coral from '../assets/gems/gem-coral.webp'
 import ocean from '../assets/gems/gem-ocean.webp'
 import amber from '../assets/gems/gem-amber.webp'
@@ -26,71 +26,37 @@ export const CELL = 64
 
 export type GemTextures = readonly Texture[]
 
-export function createGemTextures(renderer: Application['renderer']): GemTextures {
+const fallbackTextures = new WeakSet<Texture>()
+
+function createFallbackTexture(renderer: Application['renderer'], base: number): Texture {
   const frame = new Rectangle(0, 0, CELL - 8, CELL - 8)
-  const outline = 0x0b1e33
-  const shapes = [
-    {
-      draw: (art: Graphics) => art.circle(28, 28, 24),
-      facet: { halfWidth: 16, y: 17, rise: 12 },
-      shade: { halfWidth: 16, y: 43, drop: 10 },
-    },
-    {
-      draw: (art: Graphics) => art.moveTo(28, 3)
-        .bezierCurveTo(24, 11, 7, 22, 7, 34)
-        .bezierCurveTo(7, 45, 16, 52, 28, 52)
-        .bezierCurveTo(40, 52, 49, 45, 49, 34)
-        .bezierCurveTo(49, 22, 32, 11, 28, 3)
-        .closePath(),
-      facet: { halfWidth: 10, y: 23, rise: 12 },
-      shade: { halfWidth: 15, y: 43, drop: 10 },
-    },
-    {
-      draw: (art: Graphics) => art.poly([14, 6, 42, 6, 52, 28, 42, 50, 14, 50, 4, 28]),
-      facet: { halfWidth: 15, y: 16, rise: 9 },
-      shade: { halfWidth: 14, y: 43, drop: 8 },
-    },
-    {
-      draw: (art: Graphics) => art.ellipse(28, 28, 17, 24),
-      facet: { halfWidth: 11, y: 18, rise: 13 },
-      shade: { halfWidth: 11, y: 43, drop: 10 },
-    },
-    {
-      draw: (art: Graphics) => art.poly([28, 3, 53, 28, 28, 53, 3, 28]),
-      facet: { halfWidth: 10, y: 20, rise: 13 },
-      shade: { halfWidth: 9, y: 40, drop: 11 },
-    },
-    {
-      draw: (art: Graphics) => art.poly([14, 4, 42, 4, 52, 14, 52, 42, 42, 52, 14, 52, 4, 42, 4, 14]),
-      facet: { halfWidth: 17, y: 15, rise: 11 },
-      shade: { halfWidth: 16, y: 45, drop: 8 },
-    },
-  ]
+  const art = new Graphics()
+    .roundRect(4, 4, frame.width - 8, frame.height - 8, 18)
+    .fill(base)
+    .stroke({ color: 0x0b1e33, alpha: 0.9, width: 3 })
 
-  return gems.map(({ base, light }, index) => {
-    const { draw, facet, shade } = shapes[index]
-    const art = new Graphics()
+  try {
+    const texture = renderer.generateTexture({ target: art, frame, resolution: 2, antialias: true })
+    fallbackTextures.add(texture)
+    return texture
+  } finally {
+    art.destroy()
+  }
+}
 
-    draw(art).fill(base).stroke({ color: outline, alpha: 0.9, width: 3, join: 'round' })
+export async function loadGemTextures(
+  renderer: Application['renderer'],
+  signal?: AbortSignal,
+): Promise<GemTextures> {
+  const results = await Promise.allSettled(gems.map(({ asset }) => Assets.load<Texture>(asset)))
+  signal?.throwIfAborted()
+  return results.map((result, index) => result.status === 'fulfilled'
+    ? result.value
+    : createFallbackTexture(renderer, gems[index].base))
+}
 
-    // Keep the accents near the edges so special-tile glyphs have a clear center.
-    art.moveTo(28 - facet.halfWidth, facet.y)
-      .quadraticCurveTo(28, facet.y - facet.rise, 28 + facet.halfWidth, facet.y)
-      .quadraticCurveTo(28, facet.y - 2, 28 - facet.halfWidth, facet.y)
-      .closePath()
-      .fill({ color: light, alpha: 0.26 })
-      .moveTo(28 - shade.halfWidth, shade.y)
-      .quadraticCurveTo(28, shade.y + shade.drop, 28 + shade.halfWidth, shade.y)
-      .quadraticCurveTo(28, shade.y + 3, 28 - shade.halfWidth, shade.y)
-      .closePath()
-      .fill({ color: outline, alpha: 0.3 })
-      .ellipse(28 - facet.halfWidth * 0.48, facet.y - 2, 3, 1.4)
-      .fill({ color: 0xffffff, alpha: 0.55 })
-
-    try {
-      return renderer.generateTexture({ target: art, frame, resolution: 2, antialias: true })
-    } finally {
-      art.destroy()
-    }
-  })
+export function destroyGemFallbackTextures(textures: GemTextures) {
+  for (const texture of textures) {
+    if (fallbackTextures.has(texture)) texture.destroy(true)
+  }
 }
