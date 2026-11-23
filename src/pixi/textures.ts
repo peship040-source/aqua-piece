@@ -18,8 +18,8 @@ export const gems = [
 export const specials = {
   'line-row': { glyph: '↔', name: 'LINE row' },
   'line-column': { glyph: '↕', name: 'LINE column' },
-  burst: { glyph: '✦', name: 'BURST' },
-  color: { glyph: '◎', name: 'COLOR' },
+  burst: { glyph: '✺', name: 'BURST' },
+  color: { glyph: '✦', name: 'COLOR' },
 }
 
 export const CELL = 64

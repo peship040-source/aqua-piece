@@ -31,7 +31,17 @@ function collectionColor(def: StageDef) {
   return def.goalType === 'collect' ? def.targetColor : undefined
 }
 
-function SeaAmbience() {
+const snowByDepth = {
+  shallow: { count: 0, opacity: 0 },
+  mid: { count: 8, opacity: 0.24 },
+  deep: { count: 16, opacity: 0.34 },
+  abyss: { count: 26, opacity: 0.44 },
+}
+
+function SeaAmbience({ depth, showSilhouettes }: {
+  depth?: ReturnType<typeof depthTier>
+  showSilhouettes: boolean
+}) {
   const bubbles = useMemo(() => Array.from({ length: 12 }, (_, index) => {
     const duration = 18 + (index * 7) % 15
     return {
@@ -44,10 +54,37 @@ function SeaAmbience() {
     }
   }), [])
 
+  const snow = useMemo(() => {
+    if (!depth) return []
+    const { count, opacity } = snowByDepth[depth]
+    return Array.from({ length: count }, (_, index) => {
+      const duration = 34 + (index * 19) % 29
+      return {
+        left: `${(index * 37 + 11) % 101}%`,
+        width: 1 + ((index * 11) % 7) / 4,
+        animationDuration: `${duration}s`,
+        animationDelay: `${-duration * ((index * 17 + 3) % 31) / 31}s`,
+        '--snow-opacity': opacity * (0.55 + (index % 5) * 0.11),
+        '--snow-drift': `${(index % 2 ? -1 : 1) * (10 + (index * 13) % 33)}px`,
+      }
+    })
+  }, [depth])
+
   return (
-    <div className="sea-ambience" aria-hidden="true">
+    <div className="sea-ambience" data-depth={depth} aria-hidden="true">
       <div className="sea-ray" />
+      {showSilhouettes && (
+        <svg
+          className="sea-silhouettes" viewBox="0 0 800 100" width={800} height={100}
+          {...{ preserveAspectRatio: 'none', focusable: 'false' }}
+        >
+          <path d="M0 81Q35 80 58 65T108 72Q135 90 177 82T264 89Q312 95 352 83T430 86Q470 91 513 82T604 86Q635 91 661 74T712 72Q751 84 800 77V100H0Z" />
+          <path d="M116 92C121 69 111 56 99 44C115 48 127 61 126 78C133 59 127 45 131 27C146 47 139 70 133 82C143 71 153 70 159 58C163 77 143 83 140 93ZM648 93C639 78 649 66 638 51C655 58 653 71 655 81C660 65 655 58 666 40C670 57 662 66 663 80C669 71 678 71 686 62C683 78 674 78 669 94Z" />
+          <path d="M276 94Q278 80 269 72M280 93Q290 83 285 66M288 86Q299 84 302 74M540 94Q537 79 546 64M541 84Q531 81 526 71" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      )}
       {bubbles.map((style, index) => <span className="sea-bubble" key={index} style={style} />)}
+      {snow.map((style, index) => <span className="sea-snow" key={index} style={style} />)}
     </div>
   )
 }
@@ -137,7 +174,7 @@ function StageSelect({ save, resume, choose, openCollection }: {
         {save.current && (
           <button type="button" className="button button-primary continue" onClick={resume}>
             <strong>つづきから</strong>
-            <span>ステージ {save.current.game.stageId}</span>
+            <span className="stage-number">ステージ {save.current.game.stageId}</span>
           </button>
         )}
         <div className="dive-map-heading">
@@ -196,33 +233,71 @@ function StageSelect({ save, resume, choose, openCollection }: {
   )
 }
 
-function Collection({ collection, back }: { collection: Progress['collection']; back: () => void }) {
+function Collection({ collection, newItems, markSeen, back }: {
+  collection: Progress['collection']; newItems: readonly string[]; markSeen: (id: string) => void; back: () => void
+}) {
   const [selected, setSelected] = useState<ItemDef | null>(null)
-  const detail = useRef<HTMLDivElement>(null)
-  const selectedOwned = selected && collection.includes(selected.id)
+  const detail = useRef<HTMLDialogElement>(null)
+  const ownedCount = collection.length
+  const total = ITEMS.length
 
   useEffect(() => {
-    if (selected) detail.current?.scrollIntoView({ block: 'nearest' })
+    if (selected) detail.current?.showModal()
   }, [selected])
+
+  function closeDetail() {
+    detail.current?.close()
+    setSelected(null)
+  }
 
   return (
     <main className="game collection-screen">
       <header className="play-header collection-header">
         <button type="button" className="button back" onClick={back}>もどる</button>
         <h1>ずかん</h1>
-        <p>{collection.length} / {ITEMS.length} あつめた</p>
+        <div className={`collection-progress${ownedCount === total ? ' collection-progress-complete' : ''}`}>
+          <span className="collection-progress-count">
+            <svg viewBox="0 0 56 56" width={56} height={56} aria-hidden="true">
+              <circle className="collection-progress-track" cx="28" cy="28" r="24" />
+              {ownedCount > 0 && (
+                <circle
+                  className="collection-progress-fill" cx="28" cy="28" r="24"
+                  {...{ pathLength: total }} style={{ strokeDasharray: `${ownedCount} ${total - ownedCount}` }}
+                />
+              )}
+            </svg>
+            {ownedCount}/{total}
+          </span>
+          <span>あつめた</span>
+        </div>
       </header>
       <div className="collection-tank">
         {ITEMS.map(item => {
           const owned = collection.includes(item.id)
+          if (!owned) {
+            return (
+              <div key={item.id} className="collection-item collection-item-locked">
+                <span className="collection-perch"><ItemIcon itemId={item.id} owned={false} size={50} /></span>
+                <strong>？？？</strong>
+                <small><span className="stage-number">ステージ{item.stageId}</span>をクリアしよう</small>
+              </div>
+            )
+          }
+          const isNew = newItems.includes(item.id)
           return (
             <button
-              key={item.id} type="button" className={owned ? 'collection-item' : 'collection-item collection-item-locked'}
-              aria-pressed={selected === item} aria-controls="collection-detail" onClick={() => setSelected(item)}
+              key={item.id} type="button" className="collection-item" aria-controls="collection-detail"
+              {...{ 'aria-haspopup': 'dialog' }}
+              onClick={() => {
+                setSelected(item)
+                if (isNew) markSeen(item.id)
+              }}
             >
-              <span className="collection-perch"><ItemIcon itemId={item.id} owned={owned} size={50} /></span>
-              <strong>{owned ? item.name : '？？？'}</strong>
-              {!owned && <small>ステージ{item.stageId}をクリアしよう</small>}
+              <span className="collection-perch">
+                <ItemIcon itemId={item.id} owned size={50} />
+                {isNew && <span className="collection-new" {...{ lang: 'en' }}>NEW</span>}
+              </span>
+              <strong>{item.name}</strong>
             </button>
           )
         })}
@@ -241,15 +316,20 @@ function Collection({ collection, back }: { collection: Progress['collection']; 
           </svg>
         </div>
       </div>
-      <div id="collection-detail" aria-live="polite" ref={detail}>
+      <dialog
+        id="collection-detail" className="collection-detail" ref={detail} aria-labelledby="collection-detail-title"
+        onCancel={event => { event.preventDefault(); closeDetail() }}
+      >
         {selected && (
-          <div className="collection-detail" key={selected.id}>
-            <h2>{selectedOwned ? selected.name : '？？？'}</h2>
-            <p>{selectedOwned ? selected.flavor : `ステージ${selected.stageId}をクリアしよう`}</p>
-            {selectedOwned && <small>ステージ{selected.stageId}のごほうび</small>}
-          </div>
+          <>
+            <div className="collection-detail-art"><ItemIcon itemId={selected.id} owned size={128} /></div>
+            <h2 id="collection-detail-title">{selected.name}</h2>
+            <p className="collection-detail-flavor">{selected.flavor}</p>
+            <p className="collection-detail-stage stage-number">ステージ {selected.stageId} のごほうび</p>
+            <button type="button" className="button" onClick={closeDetail}>とじる</button>
+          </>
         )}
-      </div>
+      </dialog>
     </main>
   )
 }
@@ -421,7 +501,7 @@ function Result({ def, game, won, reward, restart, select, next }: {
       className={`result card${won ? ' result-won' : ' result-lost'}`} ref={dialog} aria-labelledby="result-title"
       onCancel={event => { event.preventDefault(); select() }}
     >
-      <p className="stage">ステージ {def.id}</p>
+      <p className="stage stage-number">ステージ {def.id}</p>
       <h2 id="result-title">{won ? clearTitle : lossTitle}</h2>
       {won && <><Stars count={stars} animate /><ResultBubbles /></>}
       <dl className="result-stats">
@@ -567,6 +647,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
       </header>
       <Hud def={def} score={score} settledScore={playback?.startingScore ?? game.score} count={count} moves={game.moves} />
       <div className="board-frame card">
+        <span className="board-caustics" aria-hidden="true" />
         <Board
           tiles={tiles} frame={frame} selected={selected} locked={!!playback || result !== 'playing'}
           onTap={tap} onFrameDone={advance}
@@ -591,6 +672,7 @@ type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; init
 
 function App() {
   const [save, setSave] = useState(loadSave)
+  const [newItems, setNewItems] = useState<string[]>([])
   const [screen, setScreen] = useState<Screen>({ name: 'select' })
   const [showSplash, setShowSplash] = useState(() => !window.matchMedia(motionPreference).matches)
   useEffect(() => window.scrollTo(0, 0), [screen])
@@ -610,6 +692,7 @@ function App() {
       const item = itemForStage(def.id)
       if (item && progress.collection.includes(item.id)) {
         reward = { item, isNew: !save.progress.collection.includes(item.id) }
+        if (reward.isNew) setNewItems(items => [...items, item.id])
       }
     } else if (game.score > (progress.best[def.id] ?? 0)) {
       progress = { ...progress, best: { ...progress.best, [def.id]: game.score } }
@@ -636,12 +719,19 @@ function App() {
   return (
     <>
       <div className="sea" aria-hidden="true" />
-      <SeaAmbience />
+      <SeaAmbience
+        depth={screen.name === 'play' ? depthTier(screen.initial.game.stageId) : undefined}
+        showSilhouettes={screen.name !== 'collection'}
+      />
       <div {...{ inert: showSplash }}>
         {screen.name === 'select' ? (
           <StageSelect key="select" save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
         ) : screen.name === 'collection' ? (
-          <Collection key="collection" collection={save.progress.collection} back={() => setScreen({ name: 'select' })} />
+          <Collection
+            key="collection" collection={save.progress.collection} newItems={newItems}
+            markSeen={id => setNewItems(items => items.filter(itemId => itemId !== id))}
+            back={() => setScreen({ name: 'select' })}
+          />
         ) : (
           <Play
             key={`play-${screen.initial.game.stageId}`} initial={screen.initial} progress={save.progress}

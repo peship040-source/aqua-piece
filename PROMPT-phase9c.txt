@@ -1,0 +1,11 @@
+AQUA PIECE Phase 9c (design only): collection/map delight and typography. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, index.html, src/game/items.ts, src/components/ItemIcon.tsx (read briefly). All 53 existing tests must still pass. No sound, no new image files (inline SVG/CSS only), no gameplay/save-format/stage-data changes. Respect prefers-reduced-motion.
+
+1) Collection detail: tapping an owned item in the aquarium opens a larger detail view (modal or an expanded panel) with the item icon shown big, its name, flavor text, and which stage it came from. Unowned items keep showing hint only. Closing returns to the tank. (If the current screen already has a small detail panel, upgrade it into this larger presentation.)
+
+2) Completion ring: on the collection screen header, show the owned count as a circular progress ring (SVG stroke-dasharray) around or beside the x/10 count. At 10/10 the ring gets a golden glow.
+
+3) NEW badge: items earned during the current app session (granted via the result modal flow since load) show a small NEW badge in the tank until the player opens their detail once. Session state only — do NOT change the save format; track it in React state.
+
+4) Typography: load "M PLUS Rounded 1c" (weights 500/700/800) from Google Fonts in index.html and use it for the logo, headings, and stage numbers, with a system rounded/sans fallback stack so offline rendering still looks fine. Body text keeps the current stack.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

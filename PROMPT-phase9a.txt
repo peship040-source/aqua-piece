@@ -1,0 +1,9 @@
+AQUA PIECE Phase 9a (design only): gem and board polish. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/pixi/scene.ts, src/pixi/effects.ts, src/pixi/textures.ts, src/pixi/Board.tsx, src/game/engine.ts (read briefly for how special tiles are represented). All 53 existing tests must still pass. No sound, no new image files (Pixi Graphics/CSS only), no gameplay/save/stage-data changes. Keep performance sane: pooled/capped effects, no per-frame allocations in hot loops.
+
+1) Special tiles must be recognizable at a glance: draw a distinct glyph overlay on each special tile, in Pixi above the gem sprite — LINE: double-headed arrow (↔ or ↕ by its direction if the engine tracks it, else ↔), COLOR: a star/sparkle glyph, BURST: a radiating burst glyph. White with soft glow, drawn with Graphics paths or Text — pick the cleaner approach. The overlay must follow the tile through drop/swap animations (attach it to the tile's container).
+
+2) Selection feedback: the selected tile gets an animated pulsing ring (scale/alpha breathing) instead of only a static highlight; a swap target hover is not needed (touch game).
+
+3) Gem life: a very subtle idle twinkle — occasionally (deterministic schedule, e.g. one random tile every ~1.2s) a tiny sparkle glints on a gem. Plus a soft gloss sweep across a tile right after it lands from a drop (a brief diagonal highlight fade). Keep both cheap and infrequent.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

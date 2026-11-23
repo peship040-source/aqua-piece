@@ -1,11 +1,100 @@
 import { Container, Graphics, Rectangle, Sprite, Text, type Application } from 'pixi.js'
 import { SIZE } from '../game/engine'
-import type { Frame } from '../animation'
+import type { Frame, PlacedTile } from '../animation'
 import { CELL, gems } from './textures'
 
 export const BOARD_SIZE = CELL * SIZE
 export const xOf = (at: number) => (at % SIZE + 0.5) * CELL
 export const yOf = (at: number) => (Math.floor(at / SIZE) + 0.5) * CELL
+
+const TWINKLE_INTERVAL = 1200
+const TWINKLE_DURATION = 230
+const GLOSS_DURATION = 180
+const GLOSS_COUNT = 12
+
+export function createGemPolish(layer: Container) {
+  const twinkle = layer.addChild(new Graphics()
+    .circle(0, 0, 3).fill({ color: 0xc5fff6, alpha: 0.22 })
+    .poly([0, -4.5, 0.8, -0.8, 4, 0, 0.8, 0.8, 0, 4.5, -0.8, 0.8, -4, 0, -0.8, -0.8])
+    .fill(0xffffff))
+  twinkle.visible = false
+  let idleTime = 0
+  let nextTile = 7
+
+  const glosses = Array.from({ length: GLOSS_COUNT }, () => {
+    const shape = layer.addChild(new Graphics()
+      .poly([5, -13, 10, -10, -5, 13, -10, 10]).fill({ color: 0xc9fff7, alpha: 0.2 })
+      .poly([5, -11, 7, -9, -5, 11, -7, 9]).fill({ color: 0xffffff, alpha: 0.52 }))
+    shape.visible = false
+    return { shape, before: null as Graphics | null, elapsed: 0 }
+  })
+
+  function reset(gloss: typeof glosses[number]) {
+    gloss.before = null
+    gloss.shape.visible = false
+    layer.addChild(gloss.shape)
+  }
+
+  function land(before: Graphics) {
+    const parent = before.parent
+    if (!parent) return
+    for (let i = 0; i < glosses.length; i++) {
+      const gloss = glosses[i]
+      if (gloss.before) continue
+      gloss.before = before
+      gloss.elapsed = 0
+      gloss.shape.position.set(-12, -2)
+      gloss.shape.alpha = 0
+      gloss.shape.visible = true
+      parent.addChildAt(gloss.shape, parent.getChildIndex(before))
+      return
+    }
+  }
+
+  function release(before: Graphics) {
+    for (let i = 0; i < glosses.length; i++) {
+      const gloss = glosses[i]
+      if (gloss.before === before) reset(gloss)
+    }
+  }
+
+  function update(deltaMS: number, reduced: boolean, idleTiles: PlacedTile[] | undefined) {
+    for (let i = 0; i < glosses.length; i++) {
+      const gloss = glosses[i]
+      if (!gloss.before) continue
+      gloss.elapsed += deltaMS
+      if (reduced || gloss.elapsed >= GLOSS_DURATION) {
+        reset(gloss)
+        continue
+      }
+      const progress = gloss.elapsed / GLOSS_DURATION
+      gloss.shape.x = -12 + 24 * progress
+      gloss.shape.alpha = 0.55 * Math.sin(Math.PI * progress)
+    }
+
+    if (reduced || !idleTiles?.length) {
+      twinkle.visible = false
+      idleTime = 0
+      return
+    }
+    idleTime += deltaMS
+    if (idleTime >= TWINKLE_INTERVAL) {
+      idleTime %= TWINKLE_INTERVAL
+      const at = idleTiles[nextTile % idleTiles.length].at
+      nextTile = (nextTile + 29) % idleTiles.length
+      twinkle.position.set(xOf(at) + 7, yOf(at) - 9)
+      twinkle.visible = true
+    }
+    if (twinkle.visible) {
+      const progress = idleTime / TWINKLE_DURATION
+      twinkle.visible = progress < 1
+      twinkle.alpha = 0.65 * Math.sin(Math.PI * Math.min(1, progress))
+      twinkle.scale.set(0.55 + 0.35 * progress)
+    }
+  }
+
+  return { land, release, update }
+}
 
 export function createWater(app: Application) {
   const art = new Graphics()
@@ -28,12 +117,13 @@ export function createWater(app: Application) {
 
   return {
     update(time: number) {
-      sprites.forEach((bubble, i) => {
+      for (let i = 0; i < sprites.length; i++) {
+        const bubble = sprites[i]
         bubble.x = 19 + i * (BOARD_SIZE - 38) / 8 + Math.sin(time / 1500 + i) * 11
         const rise = (i * 113 + time * (0.017 + i % 3 * 0.006)) % (BOARD_SIZE + 38)
         bubble.y = BOARD_SIZE + 19 - rise
         bubble.alpha = 0.23 + (i % 3) * 0.075
-      })
+      }
     },
     destroy: () => texture.destroy(true),
   }
@@ -230,7 +320,8 @@ export function createEffects(layer: Container) {
   }
 
   function updateSparkles(deltaMS: number, reduced: boolean) {
-    for (const sparkle of sparkles) {
+    for (let i = 0; i < sparkles.length; i++) {
+      const sparkle = sparkles[i]
       const { shape } = sparkle
       if (!shape.visible) continue
       sparkle.elapsed += deltaMS
@@ -253,7 +344,8 @@ export function createEffects(layer: Container) {
   }
 
   function updateRipples(deltaMS: number, reduced: boolean) {
-    for (const entry of ripples) {
+    for (let i = 0; i < ripples.length; i++) {
+      const entry = ripples[i]
       const { ring } = entry
       if (!ring.visible) continue
       entry.elapsed += deltaMS

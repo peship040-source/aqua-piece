@@ -1,0 +1,9 @@
+AQUA PIECE Phase 9b (design only): environment depth — marine snow, parallax silhouettes, caustic shimmer. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, src/pixi/scene.ts, src/pixi/effects.ts (read briefly; note the Phase 8c depth tiers: shallow 1-3, mid 4-6, deep 7-8, abyss 9-10, and the Phase 7a DOM ambience overlay). All 53 existing tests must still pass. No sound, no new image files (CSS/SVG/Pixi only), no gameplay/save/stage-data changes. Respect prefers-reduced-motion (all of this off/static). Keep it cheap: capped particle counts, transform/opacity animations only in DOM.
+
+1) Marine snow: tiny white specks drifting slowly down/sideways. Implement in the DOM ambience layer (deterministic pseudo-random via index + useMemo, like the bubbles). Density/opacity scales with context: on the play screen use the stage's depth tier (shallow: none or almost none; mid: few; deep: more; abyss: most, with a faint glow). On the stage select map, increase density toward the deep end is NOT required — a uniform light dusting there is fine, or skip snow on the map; keep the map simple.
+
+2) Parallax silhouettes: add a far-background silhouette layer (dark seaweed/rock/coral shapes as inline SVG or CSS shapes along the bottom edge) that drifts very slowly horizontally, at a different rate than the Phase 7a light rays, on the play screen and stage select. Very low contrast — it must read as distant scenery, never compete with UI.
+
+3) Caustic shimmer: a soft moving light pattern across the board frame's top edge / header area on the play screen (a low-opacity repeating gradient with a slow background-position animation). Subtle.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.
