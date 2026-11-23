@@ -24,8 +24,18 @@ declare module 'react/jsx-runtime' {
       'aria-labelledby'?: string
       'aria-hidden'?: boolean | 'true' | 'false'
       'aria-busy'?: boolean
+      'aria-controls'?: string
+      'aria-live'?: 'polite'
+      'aria-pressed'?: boolean
       'aria-valuenow'?: number
       'aria-valuemax'?: number
+    }
+    interface SvgPaint extends Attributes {
+      fill?: string
+      stroke?: string
+      strokeWidth?: string
+      strokeLinecap?: 'round'
+      strokeLinejoin?: 'round'
     }
     interface IntrinsicElements {
       main: Attributes
@@ -36,13 +46,18 @@ declare module 'react/jsx-runtime' {
       dl: Attributes
       dt: Attributes
       dd: Attributes
-      div: Attributes
+      div: Attributes & { ref?: { current: HTMLDivElement | null } }
       canvas: Attributes & { ref: { current: HTMLCanvasElement | null } }
       span: Attributes
       strong: Attributes
       small: Attributes
       i: Attributes
       section: Attributes
+      svg: Attributes & { viewBox: string; width: number; height: number }
+      title: Attributes
+      path: SvgPaint & { d: string }
+      circle: SvgPaint & { cx: string; cy: string; r: string }
+      ellipse: SvgPaint & { cx: string; cy: string; rx: string; ry: string }
     dialog: Attributes & { ref: { current: HTMLDialogElement | null }; onCancel?: (event: Event) => void }
     img: Attributes & { src: string; alt: string }
       footer: Attributes
