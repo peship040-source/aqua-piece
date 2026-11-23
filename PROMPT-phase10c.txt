@@ -1,0 +1,11 @@
+AQUA PIECE Phase 10c (design only): tactile feedback without sound. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/main.tsx, src/styles.css, src/pixi/scene.ts, src/pixi/effects.ts, src/pixi/Board.tsx, src/game/engine.ts (read briefly for how an invalid swap and goal state surface). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data changes — feedback presentation only. Respect prefers-reduced-motion (shake/wiggle off).
+
+1) Invalid swap wiggle: when a swap produces no match and the tiles swap back, the two tiles do a quick small horizontal wiggle ( Pixi transform animation, ~150ms ) as they return, so the rejection reads clearly.
+
+2) Press squash: a tapped/selected tile gets a subtle squash (scale 0.94 for a moment) in addition to the existing pulsing ring.
+
+3) Big-chain board feedback: on chain >= 3, the whole board container gives a tiny shake whose amplitude scales slightly with chain level (CSS class on the board wrapper or Pixi container offset — pick the layer that already owns board transforms). Keep it small (a few px, ~200ms) — playful, not nauseating.
+
+4) Goal-reached banner: the moment the stage goal is first met during play (score target reached, or collect count completed) while moves remain, show a short banner over the board top (「目標達成！」 plus remaining moves, ~1.2s, non-blocking, pointer-events none). Show it once per stage attempt. If the goal is met on the final move, the result modal follows anyway — the banner may be skipped then.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions. If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

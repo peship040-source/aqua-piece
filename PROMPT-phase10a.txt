@@ -1,0 +1,10 @@
+AQUA PIECE Phase 10a (design only): redraw the gems as procedural vector jewels in Pixi, replacing the WebP sprite rendering for board tiles. Work ONLY inside ~/workspace/aqua-piece; do not read or search anything outside it. Files you need: src/pixi/textures.ts, src/pixi/scene.ts, src/pixi/effects.ts, src/pixi/Board.tsx (read first). All 53 existing tests must still pass. No sound, no new image files, no gameplay/save/stage-data changes. The WebP asset files stay in the repo (unused by the board after this change is fine — do not delete files).
+
+Design goal: faceted jewel look, drawn with Pixi Graphics per gem color (0=coral, 1=ocean, 2=amber, 3=violet, 4=sun, 5=emerald):
+- Base shape: a rounded gem silhouette (slightly squarish-rounded or teardrop — pick one consistent shape language for all colors).
+- Facets: 3-5 inner polygons with slightly varied lightness of the base color (layered fills with alpha) to fake cut-glass depth; a bright small highlight facet near the top-left; a soft rim light along the bottom/right edge (lighter stroke or a thin light polygon).
+- Each color keeps its current hue identity so existing color-based readability (collect goals, COLOR special) is unchanged.
+- Implementation: build each gem as a Graphics/Container once per tile and reuse through animations; the special-tile glyphs, selection ring, twinkle and gloss from Phases 9a must keep working on top. Avoid redrawing Graphics every frame — draw once, animate transforms only.
+- Performance: 64 tiles must stay smooth; cache facet drawing per color in a shared Graphics or generated texture (e.g. render once to a texture per color at init) if direct Graphics per tile is heavy. Prefer generating a texture per color once and using Sprites from it — that keeps the existing animation pipeline intact.
+
+Run npm test, npm run build, and npx vite build --config vite.widget.config.ts at the end. Report each command's result, changed files, decisions (especially how you cached the drawing). If a command seems stuck for more than a couple of minutes, stop and report instead of waiting.

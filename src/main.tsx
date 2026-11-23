@@ -444,6 +444,107 @@ function Hud({ def, score, settledScore, count, moves }: {
   )
 }
 
+function StageIntro({ def, collection }: { def: StageDef; collection: Progress['collection'] }) {
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    if (!visible) return
+    const timer = window.setTimeout(() => setVisible(false), 1400)
+    return () => window.clearTimeout(timer)
+  }, [visible])
+
+  if (!visible) return null
+
+  const color = collectionColor(def)
+  const goal = color === undefined
+    ? `スコア ${formatNumber(def.target)}点`
+    : `${gems[color].label}を ${formatNumber(def.target)}個集める`
+  const thresholds = [
+    color === undefined ? `${formatNumber(def.target)}点` : '目標達成',
+    `${formatNumber(def.star2)}点`,
+    `${formatNumber(def.star3)}点`,
+  ]
+  const item = itemForStage(def.id)
+  const owned = item !== undefined && collection.includes(item.id)
+
+  return (
+    <div className="stage-intro">
+      <div className="stage-intro-card">
+        <div className="stage-intro-heading">
+          <h2>ステージ {def.id}</h2>
+          <span>深度 {formatDepth(def.id)}</span>
+        </div>
+        <p className="stage-intro-goal"><HudIcon kind="goal" />{goal}</p>
+        <dl className="stage-intro-stars" aria-label="星の獲得条件">
+          {thresholds.map((threshold, index) => (
+            <div key={index}>
+              <dt aria-label={`星${index + 1}つ`}>{'★'.repeat(index + 1)}</dt>
+              <dd>{threshold}</dd>
+            </div>
+          ))}
+        </dl>
+        {item && (
+          <p className="stage-intro-reward">
+            <ItemIcon itemId={item.id} owned={owned} size={34} />
+            <span>ごほうび <strong>{owned ? item.name : '？？？'}</strong></span>
+          </p>
+        )}
+      </div>
+      <button type="button" className="stage-intro-dismiss" aria-label="ステージ紹介をとじる" onClick={() => setVisible(false)} />
+    </div>
+  )
+}
+
+const boardProps = {
+  shallow: [
+    <>
+      <path fill="#e4b29c" d="M13 19C6 18 2 13 3 8c1-2 3-3 5-2 0-3 4-5 7-3 2-2 6-1 7 2 4-1 7 2 7 5 0 5-6 9-13 9Z" />
+      <path fill="none" stroke="#fff0cd" strokeWidth="1.2" strokeLinecap="round" d="M8 8q2 5 7 8m0-11 1 11m6-9q0 5-5 9" />
+    </>,
+    <>
+      <path fill="#dc9e6d" d="M17 2q2 0 3 6l6 1q4 1 0 4l-5 2 1 6q0 3-3 1l-5-4-6 3q-3 1-1-3l3-5-4-5q-2-3 2-2l6 2q2-6 3-6Z" />
+      <path fill="none" stroke="#ffe3ab" strokeWidth="1.6" strokeLinecap="round" d="M16 12h.1m2-6h.1m5 5h.1m-4 6h.1m-8 0h.1m-1-8h.1" />
+    </>,
+  ],
+  mid: [
+    <path fill="none" stroke="#d397b0" strokeWidth="2.8" strokeLinecap="round" d="M11 21q6-10 5-18m0 10q6-1 8-6m-10 9Q7 14 5 9m5 5L8 5m13 6 7-1" />,
+    <path fill="none" stroke="#bc8eae" strokeWidth="2.6" strokeLinecap="round" d="M20 21q-5-9-2-17m-1 12q-8-2-10-9m6 7-1-9m6 7q6-1 8-6" />,
+  ],
+  deep: [
+    <>
+      <path fill="#6aab9d" d="M13 21C7 14 17 9 13 2c9 5-1 13 2 19Zm4 0c-1-6 4-7 7-12 1 7-4 9-5 12Z" />
+      <path fill="#758998" d="M3 21q-2-4 4-6 5-1 7 6Zm13 0q2-5 7-4 4 1 5 4Z" />
+    </>,
+    <>
+      <path fill="#59918a" d="M18 21c6-8-1-10 3-18-9 6-2 12-5 18Zm-4 0c1-6-5-7-7-12-1 7 4 9 5 12Z" />
+      <path fill="#738694" d="M4 21q1-5 6-5 5 0 8 5Zm15 0q1-4 5-4 4 0 5 4Z" />
+    </>,
+  ],
+  abyss: [
+    <>
+      <path fill="none" stroke="#83e2ef" strokeWidth="1.3" strokeLinecap="round" d="M12 21q5-7 5-15m-2 10q-4-2-6-6m7 4q5-2 8-6" />
+      <path fill="none" stroke="#b4f8ff" strokeWidth="2.8" strokeLinecap="round" d="M6 4h.1m11 2h.1m7 2h.1M9 10h.1m18 5h.1" />
+    </>,
+    <>
+      <path fill="none" stroke="#83e2ef" strokeWidth="1.3" strokeLinecap="round" d="M21 21q-8-7-8-16m2 10q-5-1-9-6m10 7q5-1 7-6" />
+      <path fill="none" stroke="#b4f8ff" strokeWidth="2.8" strokeLinecap="round" d="M6 9h.1m7-4h.1m10 5h.1m3-6h.1m3 13h.1" />
+    </>,
+  ],
+}
+
+function BoardDecorations({ depth }: { depth: ReturnType<typeof depthTier> }) {
+  return (
+    <>
+      {boardProps[depth].map((prop, index) => (
+        <svg key={index} className={`board-prop board-prop-${index === 0 ? 'left' : 'right'}`}
+          viewBox="0 0 32 24" width={32} height={24} aria-hidden="true">
+          {prop}
+        </svg>
+      ))}
+    </>
+  )
+}
+
 const clearTitle = 'ステージクリア！'
 const lossTitle = '手数を使い切りました'
 
@@ -546,9 +647,11 @@ function Result({ def, game, won, reward, restart, select, next }: {
 
 type PlayFrame = Frame & { collected?: number }
 type Playback = { frames: PlayFrame[]; index: number; startingScore: number; message: string }
+const GOAL_BANNER_MS = 1200
 
-function Play({ initial, progress, onGameChange, select, choose }: {
+function Play({ initial, fresh, progress, onGameChange, select, choose }: {
   initial: CurrentGame
+  fresh: boolean
   progress: Progress
   onGameChange: (current: CurrentGame, def: StageDef) => Reward | undefined
   select: () => void
@@ -556,6 +659,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
 }) {
   const [{ seed, game }, setCurrent] = useState(initial)
   const def = stageDef(game.stageId)!
+  const depth = depthTier(def.id)
   const color = collectionColor(def)
   const result = status(game, def)
   const [layout] = useState(createTileLayout)
@@ -565,6 +669,8 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   const [message, setMessage] = useState('')
   const [playback, setPlayback] = useState<Playback | null>(null)
   const [reward, setReward] = useState<Reward | undefined>(undefined)
+  const [introAttempt, setIntroAttempt] = useState(fresh ? 1 : 0)
+  const [goalBannerFinished, setGoalBannerFinished] = useState(false)
   const resolving = useRef(false)
   const frame = playback?.frames[playback.index]
   const score = frame?.score ?? game.score
@@ -572,6 +678,14 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   const shownChain = frame?.chain ?? chain
   const best = progress.best[def.id]
   const next = result === 'won' ? stageDef(def.id + 1) : undefined
+  const showGoalBanner = !goalBannerFinished && result === 'won' && game.moves > 0
+    && (color === undefined ? score : count) >= def.target
+
+  useEffect(() => {
+    if (!showGoalBanner) return
+    const timer = window.setTimeout(() => setGoalBannerFinished(true), GOAL_BANNER_MS)
+    return () => window.clearTimeout(timer)
+  }, [showGoalBanner])
 
   function advance(completed: Frame) {
     if (!playback || completed !== frame) return
@@ -593,6 +707,8 @@ function Play({ initial, progress, onGameChange, select, choose }: {
     setChain(0)
     setMessage('')
     setReward(undefined)
+    setGoalBannerFinished(false)
+    setIntroAttempt(attempt => attempt + 1)
     onGameChange(current, def)
   }
 
@@ -640,7 +756,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
     : message || (chain > 1 ? `${chain}連鎖！` : 'となり合う宝石をタップして入れ替えよう。')
 
   return (
-    <main className={`game play-screen depth-${depthTier(def.id)}`}>
+    <main className={`game play-screen depth-${depth}`}>
       <header className="play-header">
         <button type="button" className="button back" onClick={select}>もどる</button>
         <h1>ステージ {def.id}</h1>
@@ -652,13 +768,23 @@ function Play({ initial, progress, onGameChange, select, choose }: {
           tiles={tiles} frame={frame} selected={selected} locked={!!playback || result !== 'playing'}
           onTap={tap} onFrameDone={advance}
         />
+        <BoardDecorations depth={depth} />
+        {introAttempt > 0 && <StageIntro key={introAttempt} def={def} collection={progress.collection} />}
+        <div role="status">
+          {showGoalBanner && (
+            <div className="goal-banner">
+              <strong>目標達成！</strong>
+              <span>残り手数 {formatNumber(game.moves)}</span>
+            </div>
+          )}
+        </div>
       </div>
       <p className="feedback" role="status">{result !== 'playing' && !playback ? '' : feedback}</p>
       <footer>
         {best !== undefined && <p className="best">ベスト <strong>{formatNumber(best)}</strong></p>}
         <button type="button" className="button restart" onClick={restart} disabled={!!playback}>リスタート</button>
       </footer>
-      {!playback && result !== 'playing' && (
+      {!playback && !showGoalBanner && result !== 'playing' && (
         <Result
           def={def} game={game} won={result === 'won'} reward={reward} restart={restart} select={select}
           next={next && next.id <= progress.unlocked ? () => choose(next) : undefined}
@@ -668,7 +794,7 @@ function Play({ initial, progress, onGameChange, select, choose }: {
   )
 }
 
-type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; initial: CurrentGame }
+type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; initial: CurrentGame; fresh: boolean }
 
 function App() {
   const [save, setSave] = useState(loadSave)
@@ -705,11 +831,11 @@ function App() {
     if (def.id > save.progress.unlocked) return
     const current = start(def)
     persist({ ...save, current })
-    setScreen({ name: 'play', initial: current })
+    setScreen({ name: 'play', initial: current, fresh: true })
   }
 
   function resume() {
-    if (save.current) setScreen({ name: 'play', initial: save.current })
+    if (save.current) setScreen({ name: 'play', initial: save.current, fresh: false })
   }
 
   function dismissSplash() {
@@ -734,7 +860,7 @@ function App() {
           />
         ) : (
           <Play
-            key={`play-${screen.initial.game.stageId}`} initial={screen.initial} progress={save.progress}
+            key={`play-${screen.initial.game.stageId}`} initial={screen.initial} fresh={screen.fresh} progress={save.progress}
             onGameChange={updateGame} select={() => setScreen({ name: 'select' })} choose={choose}
           />
         )}

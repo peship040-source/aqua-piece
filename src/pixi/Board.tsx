@@ -3,7 +3,7 @@ import { Application } from 'pixi.js'
 import type { Frame, PlacedTile } from '../animation'
 import { SIZE } from '../game/engine'
 import { createScene } from './scene'
-import { gems, loadGemTextures, specials } from './textures'
+import { gems, specials } from './textures'
 
 type Props = {
   tiles: PlacedTile[]
@@ -53,9 +53,6 @@ export function Board(props: Props) {
 
     async function mount() {
       try {
-        const textures = await loadGemTextures()
-        if (disposed) return
-
         await app.init({
           canvas: view, preference: 'webgl', backgroundAlpha: 0, antialias: true,
           resolution: Math.min(window.devicePixelRatio || 1, 2),
@@ -69,7 +66,7 @@ export function Board(props: Props) {
         // Pixi disables gestures by default. Tap-to-swap can coexist with page scrolling.
         view.style.touchAction = 'manipulation'
 
-        const next = createScene(app, textures,
+        const next = createScene(app,
           at => latest.current?.onTap(at),
           frame => latest.current?.onFrameDone(frame),
         )

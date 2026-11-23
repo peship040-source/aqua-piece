@@ -2,8 +2,12 @@ import { CanvasSource, Container, Graphics, Rectangle, Sprite, Text, Texture, ty
 import type { Frame, PlacedTile } from '../animation'
 import type { Tile } from '../game/engine'
 import { BOARD_SIZE, createEffects, createGemPolish, createWater, xOf } from './effects'
-import { CELL, specials, type GemTextures } from './textures'
+import { CELL, createGemTextures, specials, type GemTextures } from './textures'
 import { clampProgress, interpolate, slideProgress } from './tween'
+
+const REVERT_WIGGLE_MS = 150
+const PRESS_MS = 115
+const CHAIN_SHAKE_MS = 200
 
 type BoardState = {
   tiles: PlacedTile[]
@@ -79,8 +83,12 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
   let startY = targetY
   let duration = 0
   let landing = false
+  let pressElapsed = PRESS_MS
   node.position.set(targetX, targetY)
-  node.on('pointertap', () => tap(at))
+  node.on('pointertap', () => {
+    pressElapsed = 0
+    tap(at)
+  })
 
   function place(next: PlacedTile, dropping: boolean) {
     const isNew = tile === undefined
@@ -108,16 +116,25 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
   function update(elapsed: number, motion: Frame['motion'], reduced: boolean) {
     const progress = clampProgress(elapsed, reduced ? Math.min(35, duration) : duration)
     const eased = slideProgress(progress, motion, reduced)
-    node.position.set(interpolate(startX, targetX, eased), interpolate(startY, targetY, eased))
+    let x = interpolate(startX, targetX, eased)
+    if (!reduced && motion === 'revert' && duration > 0) {
+      const wiggle = clampProgress(Math.max(0, elapsed - (duration - REVERT_WIGGLE_MS)), REVERT_WIGGLE_MS)
+      const direction = Math.sign(targetX - startX || targetY - startY)
+      x += direction * 4 * Math.sin(wiggle * 4 * Math.PI) * (1 - wiggle)
+    }
+    node.position.set(x, interpolate(startY, targetY, eased))
     if (!landing || progress < 1) return false
     landing = false
     return !reduced
   }
 
-  function decorate(selected: boolean, time: number, clearProgress: number, reduced: boolean) {
+  function decorate(selected: boolean, time: number, deltaMS: number, clearProgress: number, reduced: boolean) {
     const bounce = selected && !reduced ? Math.sin(time / 240) : 0
     content.y = selected && !reduced ? -2 + bounce : 0
-    content.scale.set(1 + (selected && !reduced ? 0.03 + bounce * 0.018 : 0) + (reduced ? 0 : 0.26 * clearProgress))
+    const scale = 1 + (selected && !reduced ? 0.03 + bounce * 0.018 : 0) + (reduced ? 0 : 0.26 * clearProgress)
+    const press = reduced ? 1 : clampProgress(pressElapsed, PRESS_MS)
+    content.scale.set(interpolate(0.94, scale, 1 - (1 - press) ** 2))
+    pressElapsed = reduced ? PRESS_MS : Math.min(PRESS_MS, pressElapsed + deltaMS)
     content.alpha = 1 - clearProgress
     ring.visible = selected
     if (selected) {
@@ -132,12 +149,12 @@ function createTile(gem: PlacedTile, textures: GemTextures, shadowTexture: Textu
 
 export function createScene(
   app: Application,
-  textures: GemTextures,
   onTap: (at: number) => void,
   onFrameDone: (frame: Frame) => void,
 ) {
   const water = createWater(app)
   const shadow = createShadowTexture()
+  const textures = createGemTextures(app.renderer)
   const tileLayer = app.stage.addChild(new Container())
   const effectLayer = app.stage.addChild(new Container())
   effectLayer.eventMode = 'none'
@@ -155,6 +172,8 @@ export function createScene(
   let elapsed = 0
   let visualTime = 0
   let finished = false
+  let shakeElapsed = CHAIN_SHAKE_MS
+  let shakeAmplitude = 0
 
   function tap(at: number) {
     if (!preference.matches) effects.ripple(at)
@@ -164,6 +183,13 @@ export function createScene(
   function update(ticker: Ticker) {
     const reduced = preference.matches
     if (!reduced) visualTime += ticker.deltaMS
+    shakeElapsed = reduced ? CHAIN_SHAKE_MS : Math.min(CHAIN_SHAKE_MS, shakeElapsed + ticker.deltaMS)
+    const shake = shakeElapsed / CHAIN_SHAKE_MS
+    const offset = shakeAmplitude * (1 - shake) ** 2
+    app.stage.position.set(
+      Math.sin(shake * 6 * Math.PI) * offset,
+      Math.sin(shake * 4 * Math.PI) * offset * 0.4,
+    )
     water.update(visualTime)
     effects.updateRipples(ticker.deltaMS, reduced)
     effects.updateSparkles(ticker.deltaMS, reduced)
@@ -176,7 +202,7 @@ export function createScene(
     for (let i = 0; i < visibleTiles.length; i++) {
       const tile = visibleTiles[i]
       if (tile.update(elapsed, frame?.motion, reduced)) polish.land(tile.ring)
-      tile.decorate(tile.at === selected, visualTime, clearing.has(tile.at) ? progress : 0, reduced)
+      tile.decorate(tile.at === selected, visualTime, ticker.deltaMS, clearing.has(tile.at) ? progress : 0, reduced)
     }
 
     if (frame) {
@@ -203,6 +229,10 @@ export function createScene(
       clearing = new Set(frame?.lifting ? [] : frame?.effect?.cells)
       const createdSpecials: number[] = []
       const isClear = !!frame?.effect && !frame.lifting
+      if (isClear && frame && frame.chain >= 3 && !preference.matches) {
+        shakeElapsed = 0
+        shakeAmplitude = 3 + Math.min(frame.chain - 3, 4) * 0.5
+      }
       const ids = new Set(placed.map(gem => gem.id))
       visibleTiles.length = 0
       for (const [id, tile] of tileViews) {
@@ -233,6 +263,7 @@ export function createScene(
       app.destroy({ removeView: false }, { children: true })
       water.destroy()
       shadow.destroy(true)
+      for (const texture of textures) texture.destroy(true)
     },
   }
 }
