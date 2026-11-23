@@ -221,14 +221,17 @@ button:focus-visible { outline: 2px solid #e3fffa; outline-offset: 3px; }
 .continue strong { font-size: 1rem; }
 .dive-map-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-top: 12px;
 }
+.dive-map-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .dive-map-heading h2 { margin: 0; font-size: 1rem; letter-spacing: .06em; }
+.endless-link { margin-top: 12px; }
 .collection-link { flex: none; }
-.collection-link span { margin-left: 4px; color: var(--label); font-variant-numeric: tabular-nums; }
+.collection-link span, .endless-link span { margin-left: 4px; color: var(--label); font-variant-numeric: tabular-nums; }
 .dive-map {
   flex: 1;
   min-height: 0;
@@ -467,6 +470,124 @@ button:focus-visible { outline: 2px solid #e3fffa; outline-offset: 3px; }
 .item-icon-silhouette { --silhouette: #3d5868; }
 .item-icon-silhouette [fill]:not([fill="none"]) { fill: var(--silhouette); }
 .item-icon-silhouette [stroke] { stroke: var(--silhouette); }
+
+.ocean-screen {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 14px;
+  min-height: 460px;
+  height: 100vh;
+  height: 100dvh;
+  width: min(100%, 640px);
+}
+.ocean-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 4px 8px;
+}
+.ocean-header h1 {
+  margin: 0;
+  font-size: clamp(1.12rem, 5vw, 1.65rem);
+  text-shadow: 0 3px 12px #031b2dbf;
+}
+.ocean-header p {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  color: var(--label);
+  font-size: .85rem;
+}
+.ocean-scene {
+  --item-inset: 46px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--panel-radius);
+  background:
+    radial-gradient(ellipse at 24% 0%, #a8fff763, transparent 54%),
+    linear-gradient(180deg, #228791, #126076 42%, #123d58);
+  box-shadow: inset 0 1px #e9fffe4d, var(--shadow);
+}
+.ocean-scene .sea-ambience { position: absolute; }
+.ocean-sand {
+  position: absolute;
+  inset: auto -6% 0;
+  height: 19%;
+  min-height: 72px;
+  border-radius: 50% 70% 0 0 / 30% 32% 0 0;
+  background:
+    radial-gradient(ellipse at 26% 50%, #fff0bf3d 0 2px, transparent 3px) 0 0 / 37px 23px,
+    radial-gradient(ellipse at 72% 32%, #584e5540 0 1px, transparent 2px) 0 0 / 29px 31px,
+    linear-gradient(165deg, #d7bf8b, #a7997a 48%, #6f7580);
+  box-shadow: inset 0 2px #ffffcf50;
+  pointer-events: none;
+}
+.ocean-sand .board-prop { top: auto; width: clamp(54px, 16vw, 96px); opacity: .85; }
+.ocean-sand .board-prop-left { left: 8%; bottom: 25%; }
+.ocean-sand .board-prop-right { right: 8%; bottom: 39%; }
+.ocean-item {
+  position: absolute;
+  z-index: 1;
+  left: clamp(var(--item-inset), var(--x), 100% - var(--item-inset));
+  top: clamp(var(--item-inset), var(--y), 100% - var(--item-inset));
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 5px 5px #06314080);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.ocean-item[aria-pressed="true"] { z-index: 2; }
+.ocean-item.ocean-item-dragging {
+  z-index: 3;
+  transform: translate(-50%, -50%) scale(1.12);
+  filter: drop-shadow(0 10px 8px #041d34b3);
+  cursor: grabbing;
+}
+.ocean-item-art { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .ocean-item-art { animation: ocean-bob ease-in-out infinite; }
+  .ocean-item-dragging .ocean-item-art { animation-play-state: paused; }
+}
+@keyframes ocean-bob {
+  0%, 100% { transform: translateY(2px) rotate(var(--ocean-sway)); }
+  50% { transform: translateY(-4px) rotate(calc(-1 * var(--ocean-sway))); }
+}
+.ocean-selection {
+  position: absolute;
+  z-index: 4;
+  inset: 12px 8px auto;
+  text-align: center;
+  pointer-events: none;
+}
+.ocean-chip {
+  display: inline-block;
+  padding: 5px 12px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: #103e50ed;
+  box-shadow: var(--shadow);
+  font-size: .8rem;
+  font-weight: 750;
+}
+.ocean-empty {
+  position: absolute;
+  inset: 0;
+  width: fit-content;
+  height: fit-content;
+  max-width: calc(100% - 32px);
+  margin: auto;
+  padding: 14px 18px;
+  text-align: center;
+  line-height: 1.6;
+}
 .collection-progress {
   display: grid;
   justify-self: end;

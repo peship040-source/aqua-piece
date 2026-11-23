@@ -10,6 +10,11 @@ export type StageDef = {
   star3: number
 }
 
+export const ENDLESS_DEF: StageDef = {
+  id: 0, goalType: 'score', moves: Number.MAX_SAFE_INTEGER,
+  target: 1e15, star2: 2e15, star3: 3e15,
+}
+
 export const STAGES: StageDef[] = [
   { id: 1, goalType: 'score', target: 1000, moves: 30, star2: 1400, star3: 1800 },
   { id: 2, goalType: 'collect', targetColor: 0, target: 18, moves: 30, star2: 1500, star3: 2000 },
@@ -24,7 +29,7 @@ export const STAGES: StageDef[] = [
 ]
 
 export function stageDef(id: number): StageDef | undefined {
-  return STAGES.find(def => def.id === id)
+  return id === ENDLESS_DEF.id ? ENDLESS_DEF : STAGES.find(def => def.id === id)
 }
 
 export function goalReached(def: StageDef, game: Game): boolean {

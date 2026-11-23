@@ -4,8 +4,8 @@ import { animateTurn, createTileLayout, type Frame } from './animation'
 import { ItemIcon } from './components/ItemIcon'
 import { adjacent, playWithSteps, seededRng, stageFor, status, type Game } from './game/engine'
 import { ITEMS, itemForStage, type ItemDef } from './game/items'
-import { earnedStars, STAGES, stageDef, type StageDef } from './game/stages'
-import { loadSave, recordClear, storeSave, type CurrentGame, type Progress, type Save } from './save'
+import { ENDLESS_DEF, earnedStars, STAGES, stageDef, type StageDef } from './game/stages'
+import { loadSave, recordClear, storeSave, type CurrentGame, type OceanPosition, type Progress, type Save } from './save'
 import { Board } from './pixi/Board'
 import { gems } from './pixi/textures'
 import './styles.css'
@@ -18,7 +18,7 @@ const newSeed = () => crypto.getRandomValues(new Uint32Array(1))[0]
 const start = (def: StageDef, seed = newSeed()): CurrentGame => ({ seed, game: stageFor(def, seededRng(seed)) })
 const formatNumber = (value: number) => value.toLocaleString('ja-JP')
 const motionPreference = '(prefers-reduced-motion: reduce)'
-const formatDepth = (stage: number) => stage === 1 ? '0 m' : `−${(stage - 1) * 10} m`
+const formatDepth = (stage: number) => stage <= 1 ? '0 m' : `−${(stage - 1) * 10} m`
 
 function depthTier(stage: number) {
   if (stage <= 3) return 'shallow'
@@ -161,10 +161,10 @@ const diveRoute = STAGES.map((_, index) => {
   return `C ${previousX} ${y - 50}, ${x} ${y - 50}, ${x} ${y}`
 }).join(' ')
 
-function StageSelect({ save, resume, choose, openCollection }: {
-  save: Save; resume: () => void; choose: (def: StageDef) => void; openCollection: () => void
+function StageSelect({ save, resume, choose, openCollection, openOcean }: {
+  save: Save; resume: () => void; choose: (def: StageDef) => void; openCollection: () => void; openOcean: () => void
 }) {
-  const { unlocked, stars, best, collection } = save.progress
+  const { unlocked, stars, best, collection, endlessBest } = save.progress
   const nextId = STAGES.find(def => def.id <= unlocked && !stars[def.id])?.id
 
   return (
@@ -177,11 +177,17 @@ function StageSelect({ save, resume, choose, openCollection }: {
             <span className="stage-number">ステージ {save.current.game.stageId}</span>
           </button>
         )}
+        <button type="button" className="button endless-link" onClick={() => choose(ENDLESS_DEF)}>
+          エンドレス{endlessBest > 0 && <span>ベスト {formatNumber(endlessBest)}</span>}
+        </button>
         <div className="dive-map-heading">
           <h2 id="dive-map-title">ステージをえらぶ</h2>
-          <button type="button" className="button collection-link" onClick={openCollection}>
-            図鑑 <span>{collection.length}/{ITEMS.length}</span>
-          </button>
+          <div className="dive-map-actions">
+            <button type="button" className="button collection-link" onClick={openCollection}>
+              図鑑 <span>{collection.length}/{ITEMS.length}</span>
+            </button>
+            <button type="button" className="button" onClick={openOcean}>マイオーシャン</button>
+          </div>
         </div>
       </header>
       <section className="dive-map" aria-labelledby="dive-map-title" {...{ tabIndex: 0 }}>
@@ -386,11 +392,11 @@ function HudIcon({ kind }: { kind: keyof typeof hudIconPaths }) {
   )
 }
 
-function Moves({ count }: { count: number }) {
+function Moves({ count, endless = false }: { count: number; endless?: boolean }) {
   return (
-    <dl className={`moves card${count <= 5 ? ' moves-low' : ''}`}>
-      <dt><HudIcon kind="moves" />残り手数</dt>
-      <dd>{count}</dd>
+    <dl className={`moves card${!endless && count <= 5 ? ' moves-low' : ''}`}>
+      <dt><HudIcon kind="moves" />{endless ? '手数' : '残り手数'}</dt>
+      <dd>{formatNumber(count)}</dd>
     </dl>
   )
 }
@@ -440,6 +446,25 @@ function Hud({ def, score, settledScore, count, moves }: {
         </div>
       </div>
       <Moves count={moves} />
+    </section>
+  )
+}
+
+function EndlessHud({ score, moves, best }: { score: number; moves: number; best: number }) {
+  const displayedScore = useTweenedScore(score)
+  return (
+    <section className="hud" aria-label="エンドレスのスコアと手数">
+      <div className="goal card">
+        <div className="goal-label">
+          <span><HudIcon kind="score" />スコア</span>
+          <strong>{formatNumber(displayedScore)}</strong>
+        </div>
+        <div className="hud-details">
+          <small className="secondary-score">ベスト <strong>{formatNumber(best)}</strong></small>
+          <small className="hud-depth">深度 {formatDepth(ENDLESS_DEF.id)}</small>
+        </div>
+      </div>
+      <Moves count={moves} endless />
     </section>
   )
 }
@@ -659,6 +684,7 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
 }) {
   const [{ seed, game }, setCurrent] = useState(initial)
   const def = stageDef(game.stageId)!
+  const endless = def.id === ENDLESS_DEF.id
   const depth = depthTier(def.id)
   const color = collectionColor(def)
   const result = status(game, def)
@@ -678,7 +704,7 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
   const shownChain = frame?.chain ?? chain
   const best = progress.best[def.id]
   const next = result === 'won' ? stageDef(def.id + 1) : undefined
-  const showGoalBanner = !goalBannerFinished && result === 'won' && game.moves > 0
+  const showGoalBanner = !endless && !goalBannerFinished && result === 'won' && game.moves > 0
     && (color === undefined ? score : count) >= def.target
 
   useEffect(() => {
@@ -700,7 +726,7 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
 
   function restart() {
     if (resolving.current) return
-    const current = start(def, seed)
+    const current = start(def, endless ? undefined : seed)
     setCurrent(current)
     setTiles(layout.place(current.game.board))
     setSelected(null)
@@ -759,9 +785,13 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
     <main className={`game play-screen depth-${depth}`}>
       <header className="play-header">
         <button type="button" className="button back" onClick={select}>もどる</button>
-        <h1>ステージ {def.id}</h1>
+        <h1>{endless ? 'エンドレス' : `ステージ ${def.id}`}</h1>
       </header>
-      <Hud def={def} score={score} settledScore={playback?.startingScore ?? game.score} count={count} moves={game.moves} />
+      {endless ? (
+        <EndlessHud score={playback?.startingScore ?? game.score} moves={def.moves - game.moves} best={progress.endlessBest} />
+      ) : (
+        <Hud def={def} score={score} settledScore={playback?.startingScore ?? game.score} count={count} moves={game.moves} />
+      )}
       <div className="board-frame card">
         <span className="board-caustics" aria-hidden="true" />
         <Board
@@ -769,7 +799,7 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
           onTap={tap} onFrameDone={advance}
         />
         <BoardDecorations depth={depth} />
-        {introAttempt > 0 && <StageIntro key={introAttempt} def={def} collection={progress.collection} />}
+        {!endless && introAttempt > 0 && <StageIntro key={introAttempt} def={def} collection={progress.collection} />}
         <div role="status">
           {showGoalBanner && (
             <div className="goal-banner">
@@ -781,10 +811,10 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
       </div>
       <p className="feedback" role="status">{result !== 'playing' && !playback ? '' : feedback}</p>
       <footer>
-        {best !== undefined && <p className="best">ベスト <strong>{formatNumber(best)}</strong></p>}
+        {!endless && best !== undefined && <p className="best">ベスト <strong>{formatNumber(best)}</strong></p>}
         <button type="button" className="button restart" onClick={restart} disabled={!!playback}>リスタート</button>
       </footer>
-      {!playback && !showGoalBanner && result !== 'playing' && (
+      {!endless && !playback && !showGoalBanner && result !== 'playing' && (
         <Result
           def={def} game={game} won={result === 'won'} reward={reward} restart={restart} select={select}
           next={next && next.id <= progress.unlocked ? () => choose(next) : undefined}
@@ -794,7 +824,123 @@ function Play({ initial, fresh, progress, onGameChange, select, choose }: {
   )
 }
 
-type Screen = { name: 'select' } | { name: 'collection' } | { name: 'play'; initial: CurrentGame; fresh: boolean }
+const oceanSpots: OceanPosition[] = [
+  { x: .28, y: .89 }, { x: .72, y: .89 }, { x: .5, y: .68 },
+  { x: .18, y: .57 }, { x: .82, y: .57 }, { x: .21, y: .33 },
+  { x: .5, y: .18 }, { x: .5, y: .43 }, { x: .79, y: .34 }, { x: .82, y: .77 },
+]
+const oceanSwimmers = new Set(['tropical-fish', 'sea-turtle', 'jellyfish', 'seahorse'])
+type OceanPointer = PointerEvent & { currentTarget: HTMLButtonElement }
+
+function Ocean({ progress, place, back }: {
+  progress: Progress; place: (id: string, position: OceanPosition) => void; back: () => void
+}) {
+  const scene = useRef<HTMLDivElement>(null)
+  const gesture = useRef<{
+    pointerId: number; startX: number; startY: number; offsetX: number; offsetY: number; moved: boolean
+  }>(null)
+  const [drag, setDrag] = useState<{ id: string; position: OceanPosition } | null>(null)
+  const [selected, setSelected] = useState<ItemDef | null>(null)
+
+  function startDrag(event: OceanPointer) {
+    if (event.button !== 0 || gesture.current) return
+    const button = event.currentTarget
+    const bounds = button.getBoundingClientRect()
+    button.setPointerCapture(event.pointerId)
+    gesture.current = {
+      pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
+      offsetX: event.clientX - (bounds.left + bounds.width / 2),
+      offsetY: event.clientY - (bounds.top + bounds.height / 2),
+      moved: false,
+    }
+  }
+
+  function dragPosition(event: OceanPointer): OceanPosition | undefined {
+    const active = gesture.current
+    if (!active || active.pointerId !== event.pointerId || !scene.current) return
+    if (!active.moved && Math.hypot(event.clientX - active.startX, event.clientY - active.startY) < 6) return
+    active.moved = true
+    const bounds = scene.current.getBoundingClientRect()
+    const margin = event.currentTarget.offsetWidth / 2 + 10
+    const clamp = (value: number, length: number) => Math.max(margin, Math.min(length - margin, value)) / length
+    return {
+      x: clamp(event.clientX - bounds.left - scene.current.clientLeft - active.offsetX, scene.current.clientWidth),
+      y: clamp(event.clientY - bounds.top - scene.current.clientTop - active.offsetY, scene.current.clientHeight),
+    }
+  }
+
+  function cancelDrag(event: OceanPointer) {
+    if (gesture.current?.pointerId !== event.pointerId) return
+    gesture.current = null
+    setDrag(null)
+  }
+
+  return (
+    <main className="game ocean-screen">
+      <header className="ocean-header">
+        <button type="button" className="button back" onClick={back}>もどる</button>
+        <h1>マイオーシャン</h1>
+        <p>ドラッグで置き場所を変えられるよ</p>
+      </header>
+      <div className="ocean-scene" ref={scene} {...{
+        onClick: (event: MouseEvent) => {
+          if (event.target instanceof Element && !event.target.closest('.ocean-item')) setSelected(null)
+        },
+      }}>
+        <div className="ocean-sand" aria-hidden="true"><BoardDecorations depth="shallow" /></div>
+        <SeaAmbience showSilhouettes={false} />
+        {progress.collection.length === 0 && (
+          <p className="ocean-empty card">ステージをクリアして集めたアイテムを、ここに飾れるよ。</p>
+        )}
+        {ITEMS.map((item, index) => {
+          if (!progress.collection.includes(item.id)) return null
+          const moving = drag?.id === item.id
+          const { x, y } = moving ? drag.position : progress.ocean[item.id] ?? oceanSpots[index]
+          return (
+            <button
+              key={item.id} type="button"
+              className={`ocean-item${moving ? ' ocean-item-dragging' : ''}`}
+              aria-label={item.name} aria-pressed={selected?.id === item.id}
+              style={{ '--x': `${x * 100}%`, '--y': `${y * 100}%` }}
+              {...{
+                onPointerDown: startDrag,
+                onPointerMove: (event: OceanPointer) => {
+                  const position = dragPosition(event)
+                  if (position) setDrag({ id: item.id, position })
+                },
+                onPointerUp: (event: OceanPointer) => {
+                  if (gesture.current?.pointerId !== event.pointerId) return
+                  const position = dragPosition(event)
+                  cancelDrag(event)
+                  if (position) place(item.id, position)
+                  else setSelected(item)
+                },
+                onPointerCancel: cancelDrag,
+                onLostPointerCapture: cancelDrag,
+                onClick: (event?: MouseEvent) => {
+                  if (event?.detail === 0) setSelected(item)
+                },
+              }}
+            >
+              <span className="ocean-item-art" style={{
+                animationDelay: `${-index * .73}s`,
+                animationDuration: `${4.8 + (index % 5) * .6}s`,
+                '--ocean-sway': oceanSwimmers.has(item.id) ? '4deg' : '0deg',
+              }}>
+                <ItemIcon itemId={item.id} owned size={72} />
+              </span>
+            </button>
+          )
+        })}
+        <div className="ocean-selection" aria-live="polite">
+          {selected && <span className="ocean-chip">{selected.name}</span>}
+        </div>
+      </div>
+    </main>
+  )
+}
+
+type Screen = { name: 'select' } | { name: 'collection' } | { name: 'ocean' } | { name: 'play'; initial: CurrentGame; fresh: boolean }
 
 function App() {
   const [save, setSave] = useState(loadSave)
@@ -810,6 +956,12 @@ function App() {
 
   function updateGame(current: CurrentGame, def: StageDef) {
     const game = current.game
+    if (game.stageId === ENDLESS_DEF.id) {
+      if (game.score > save.progress.endlessBest) {
+        persist({ ...save, progress: { ...save.progress, endlessBest: game.score } })
+      }
+      return
+    }
     const result = status(game, def)
     let progress = save.progress
     let reward: Reward | undefined
@@ -830,7 +982,7 @@ function App() {
   function choose(def: StageDef) {
     if (def.id > save.progress.unlocked) return
     const current = start(def)
-    persist({ ...save, current })
+    if (def.id !== ENDLESS_DEF.id) persist({ ...save, current })
     setScreen({ name: 'play', initial: current, fresh: true })
   }
 
@@ -845,18 +997,30 @@ function App() {
   return (
     <>
       <div className="sea" aria-hidden="true" />
-      <SeaAmbience
-        depth={screen.name === 'play' ? depthTier(screen.initial.game.stageId) : undefined}
-        showSilhouettes={screen.name !== 'collection'}
-      />
+      {screen.name !== 'ocean' && (
+        <SeaAmbience
+          depth={screen.name === 'play' ? depthTier(screen.initial.game.stageId) : undefined}
+          showSilhouettes={screen.name !== 'collection'}
+        />
+      )}
       <div {...{ inert: showSplash }}>
         {screen.name === 'select' ? (
-          <StageSelect key="select" save={save} choose={choose} resume={resume} openCollection={() => setScreen({ name: 'collection' })} />
+          <StageSelect
+            key="select" save={save} choose={choose} resume={resume}
+            openCollection={() => setScreen({ name: 'collection' })} openOcean={() => setScreen({ name: 'ocean' })}
+          />
         ) : screen.name === 'collection' ? (
           <Collection
             key="collection" collection={save.progress.collection} newItems={newItems}
             markSeen={id => setNewItems(items => items.filter(itemId => itemId !== id))}
             back={() => setScreen({ name: 'select' })}
+          />
+        ) : screen.name === 'ocean' ? (
+          <Ocean
+            key="ocean" progress={save.progress} back={() => setScreen({ name: 'select' })}
+            place={(id, position) => persist({
+              ...save, progress: { ...save.progress, ocean: { ...save.progress.ocean, [id]: position } },
+            })}
           />
         ) : (
           <Play
